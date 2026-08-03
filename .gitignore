@@ -1,0 +1,99 @@
+# ==============================
+# Laravel / PHP
+# ==============================
+/vendor/
+/node_modules/
+/.vite/
+/public/hot
+/public/build
+/public/storage
+/storage/*.key
+/storage/*.lock
+/storage/logs/
+/storage/framework/cache/
+/storage/framework/sessions/
+/storage/framework/views/
+/.env
+/.env.*
+!.env.example
+/.phpunit.cache
+/.php-version
+/composer.lock
+/package-lock.json
+/yarn.lock
+
+# ==============================
+# FastAPI / Python
+# ==============================
+/fastapi/venv/
+/fastapi/.venv/
+/fastapi/env/
+/fastapi/__pycache__/
+/fastapi/*/__pycache__/
+/fastapi/*/*/__pycache__/
+/fastapi/*.pyc
+/fastapi/*.pyo
+/fastapi/*.pyd
+/fastapi/.pytest_cache/
+/fastapi/.mypy_cache/
+/fastapi/.ruff_cache/
+/fastapi/.coverage
+/fastapi/htmlcov/
+/fastapi/.tox/
+/fastapi/.nox/
+/fastapi/dist/
+/fastapi/build/
+/fastapi/*.egg-info/
+/fastapi/.DS_Store
+/fastapi/.env
+/fastapi/.env.*
+/fastapi/*.db
+/fastapi/*.sqlite
+/fastapi/*.sqlite3
+
+# ==============================
+# IDE / Editors
+# ==============================
+/.vscode/
+/.idea/
+/.phpstorm.meta.php
+/*.iml
+/.editorconfig
+/.vs/
+/*.code-workspace
+/.history/
+/.gitpod.yml
+
+# ==============================
+# OS / System
+# ==============================
+/.DS_Store
+/Thumbs.db
+/desktop.ini
+*.log
+*.pid
+*.seed
+*.pid.lock
+/.cache/
+/.npm/
+/.local/
+
+# ==============================
+# Project specific (Shared / Scripts)
+# ==============================
+/shared/temp/
+/shared/cache/
+/scripts/*.log
+/scripts/*.pid
+
+# ==============================
+# Backup / Archive
+# ==============================
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.bak
+*.swp
+*.swo
+*~
