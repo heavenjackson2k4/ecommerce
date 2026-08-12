@@ -28,7 +28,11 @@ class AuthController extends Controller
 
         if(Auth::attempt(($credentials), $remember)){
             $request->session()->regenerate();
-            return redirect()->intended('/dashboard');
+            $user = Auth::user();
+            if($user->isAdmin()){
+                return redirect()->route('admin.dashboard');
+            }
+            return redirect()->route('customer.dashboard');
         }
 
         throw ValidationException::withMessages([
@@ -54,12 +58,13 @@ class AuthController extends Controller
             'name'=>$request->name,
             'email'=>$request->email,
             'phone' => $request->phone,
-            'password'=>Hash::make($request->password)
+            'password'=>Hash::make($request->password),
+            'role'=>'customer',
         ]);
 
         Auth::login($user);
 
-        return redirect('/dashboard')->with('success', 'Registration successful. You are now logged in.');
+        return redirect()->route('customer.dashboard')->with('success', 'Đăng ký thành công');
     }
 
     public function logout(Request $request){

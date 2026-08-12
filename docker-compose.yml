@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # -------------------- Nginx Reverse Proxy --------------------
+  nginx:
+    image: nginx:alpine
+    container_name: ecommerce-nginx
+    ports:
+      - "80:80"                      # HTTP
+      - "443:443"                    # HTTPS (nếu cần)
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d   # mount cấu hình
+      - ./laravel/public:/var/www/html/public   # để phục vụ file static (nếu cần)
+    depends_on:
+      - rabbitmq
+      - redis
+    restart: unless-stopped
+    networks:
+      - ecommerce-net
+
+  # -------------------- RabbitMQ (Message Broker) --------------------
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ecommerce-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    ports:
+      - "5672:5672"                  # AMQP port
+      - "15672:15672"                # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+    networks:
+      - ecommerce-net
+
+  # -------------------- Redis (Cache / Queue) --------------------
+  redis:
+    image: redis:alpine
+    container_name: ecommerce-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - ecommerce-net
+
+# -------------------- Volumes (persist data) --------------------
+volumes:
+  rabbitmq_data:
+  redis_data:
+
+# -------------------- Networks --------------------
+networks:
+  ecommerce-net:
+    driver: bridge
