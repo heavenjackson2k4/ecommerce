@@ -16,7 +16,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'getCurrentUser']);
 
     // Admin Routes - cần token + admin role
-    Route::middleware('api.role:admin')->prefix('admin')->group(function () {
+    Route::middleware('role:admin')->prefix('admin')->group(function () {
         // Categories
         Route::apiResource('categories', CategoryController::class)->except(['create', 'edit']);
 
@@ -41,7 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Customer Routes - cần token + customer role
-    Route::middleware('api.role:customer')->prefix('customer')->group(function () {
+    Route::middleware('role:customer')->prefix('customer')->group(function () {
         // Future customer routes here
     });
 });
