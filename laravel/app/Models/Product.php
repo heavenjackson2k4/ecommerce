@@ -42,8 +42,32 @@ class Product extends Model
         return $this->hasOne(Cloth::class);
     }
 
-    public function variants(): HasMany
+    // public function variants(): HasMany
+    // {
+    //     return $this->hasMany(ProductVariant::class);
+    // }
+
+    public function shoesVariants(): HasMany
     {
-        return $this->hasMany(ProductVariant::class);
+        return $this->hasMany(ShoesVariant::class);
+    }
+
+
+    public function clothesVariants(): HasMany
+    {
+        return $this->hasMany(ClothesVariant::class);
+    }
+
+    public function getVariantsAttribute()
+    {
+        if ($this->product_type === 'SHOE') {
+            return $this->shoesVariants;
+        }
+        return $this->clothesVariants;
+    }
+
+    public function getTotalStockAttribute()
+    {
+        return $this->variants->sum('quantity');
     }
 }

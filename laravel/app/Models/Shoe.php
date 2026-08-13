@@ -10,7 +10,6 @@ class Shoe extends Model
     //
     protected $fillable = [
         'product_id',
-        'stud_type',
         'silo'
     ];
 
