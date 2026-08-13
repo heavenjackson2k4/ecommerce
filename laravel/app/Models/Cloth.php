@@ -9,6 +9,8 @@ class Cloth extends Model
 {
     //
 
+    protected $table = 'clothes';
+
     protected $fillable = [
         'product_id',
         'sleeve_type'

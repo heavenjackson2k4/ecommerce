@@ -27,8 +27,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('products/{id}', [ProductController::class, 'destroy']);
 
         // Create shoe & cloth
-        Route::post('shoes', [ProductController::class, 'storeShoe']);
-        Route::post('clothes', [ProductController::class, 'storeCloth']);
+        Route::post('shoes', [ProductController::class, 'storeShoe'])->name('api.admin.clothes.store');
+        Route::post('clothes', [ProductController::class, 'storeCloth'])->name('api.admin.shoes.store'); 
 
         // Variants
         Route::get('products/{productId}/variants', [VariantController::class, 'index']);

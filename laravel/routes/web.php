@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Admin\ProductController;
 
 // Route::get('/', function () {
 //     return view('welcome');
@@ -21,6 +22,24 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function (){
     Route::get('/dashboard', function(){
         return view('admin.dashboard');
     })->name('admin.dashboard');
+
+    //  Route::get('/dashboard', function () {
+    //     return view('admin.dashboard');
+    // })->name('admin.dashboard');
+
+    // Nhập quần áo
+    Route::get('/nhap-quan-ao', function () {
+        return view('admin.nhap-quan-ao');
+    })->name('admin.nhap-quan-ao');
+
+    // Nhập giày
+    Route::get('/nhap-giay', function () {
+        return view('admin.nhap-giay');
+    })->name('admin.nhap-giay');
+
+
+    Route::post('/shoes', [ProductController::class, 'storeShoe'])->name('admin.shoes.store');
+    Route::post('/clothes', [ProductController::class, 'storeCloth'])->name('admin.clothes.store');
 });
 
 Route::middleware(['auth', 'role:customer'])->prefix('customer')->group(function () {

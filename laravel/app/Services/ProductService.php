@@ -50,6 +50,7 @@ class ProductService{
                     $product->variants()->create([
                         'sku'=>$variant['sku'],
                         'color'=>$variant['color'],
+                        'size'=>$variant['size'],
                         'stock_quantity'=>$variant['stock_quantity'] ??0,
                         'price_override'=>$variant['price_override'] ?? null,
                         'status'=>$variant['status'] ?? 'active'
