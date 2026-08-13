@@ -1,110 +1,210 @@
 @extends('layouts.admin')
 
-@section('title', 'Nhập quần áo')
-@section('page-title', 'Nhập quần áo mới')
+@section('title', 'Nhập quần áo mới')
+
 @section('content')
-    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <form id="form-cloth" method="POST" action="{{ route('admin.clothes.store') }}" class="space-y-4">
-            @csrf
-            <!-- Các trường thông tin chung -->
+<div class="max-w-6xl mx-auto">
+    <h2 class="text-2xl font-bold mb-6">Nhập quần áo mới</h2>
+
+    <form method="POST" action="{{ route('admin.clothes.store') }}" id="cloth-form" class="bg-white p-6 rounded-lg shadow">
+        @csrf
+
+        <!-- Thông tin chung -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div>
+                <label class="block text-sm font-medium mb-1">Danh mục <span class="text-red-500">*</span></label>
+                <select name="category_id" class="w-full border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-black" required>
+                    <option value="">-- Chọn danh mục --</option>
+                    @foreach($categories as $category)
+                        <option value="{{ $category->id }}">{{ $category->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Tên sản phẩm <span class="text-red-500">*</span></label>
+                <input type="text" name="name" class="w-full border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-black" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Slug <span class="text-red-500">*</span></label>
+                <input type="text" name="slug" class="w-full border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-black" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Giá cơ bản (VNĐ) <span class="text-red-500">*</span></label>
+                <input type="number" step="1000" name="base_price" class="w-full border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-black" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Kiểu tay <span class="text-red-500">*</span></label>
+                <select name="sleeve_type" class="w-full border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-black" required>
+                    <option value="SHORT">Tay ngắn</option>
+                    <option value="LONG">Tay dài</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Trạng thái</label>
+                <select name="status" class="w-full border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-black">
+                    <option value="active">Active</option>
+                    <option value="draft">Draft</option>
+                    <option value="archived">Archived</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tạo biến thể tự động -->
+        <div class="border-t border-slate-200 pt-4 mt-4">
+            <h3 class="text-lg font-semibold mb-3">Tạo biến thể tự động</h3>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label for="category_id" class="block text-sm font-medium text-gray-700">Danh mục</label>
-                    <select id="category_id" name="category_id" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200">
-                        @foreach(\App\Models\Category::all() as $cat)
-                            <option value="{{ $cat->id }}">{{ $cat->name }}</option>
-                        @endforeach
-                    </select>
+                    <label class="block text-sm font-medium mb-1">Sizes <span class="text-red-500">*</span></label>
+                    <input type="text" id="cloth-sizes" class="w-full border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-black" placeholder="VD: S,M,L,XL">
                 </div>
                 <div>
-                    <label for="name" class="block text-sm font-medium text-gray-700">Tên sản phẩm</label>
-                    <input type="text" id="name" name="name" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200" required>
-                </div>
-                <div>
-                    <label for="slug" class="block text-sm font-medium text-gray-700">Slug</label>
-                    <input type="text" id="slug" name="slug" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200" required>
-                </div>
-                <div>
-                    <label for="base_price" class="block text-sm font-medium text-gray-700">Giá cơ bản (VNĐ)</label>
-                    <input type="number" id="base_price" name="base_price" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200" required>
-                </div>
-                <div>
-                    <label for="sleeve_type" class="block text-sm font-medium text-gray-700">Loại tay</label>
-                    <select id="sleeve_type" name="sleeve_type" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200">
-                        <option value="SHORT">Tay ngắn</option>
-                        <option value="LONG">Tay dài</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="status" class="block text-sm font-medium text-gray-700">Trạng thái</label>
-                    <select id="status" name="status" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200">
-                        <option value="active">Hoạt động</option>
-                        <option value="draft">Nháp</option>
-                        <option value="archived">Lưu trữ</option>
-                    </select>
+                    <label class="block text-sm font-medium mb-1">Màu sắc <span class="text-red-500">*</span></label>
+                    <input type="text" id="cloth-colors" class="w-full border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-black" placeholder="VD: Trắng,Xanh,Đen">
                 </div>
             </div>
-            <div>
-                <label for="description" class="block text-sm font-medium text-gray-700">Mô tả</label>
-                <textarea id="description" name="description" rows="4" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200"></textarea>
+            <div class="mt-3 flex gap-3">
+                <button type="button" id="generate-variants-btn" class="bg-black text-white px-4 py-2 rounded hover:bg-slate-800 transition">Tạo biến thể</button>
+                <button type="button" id="clear-variants-btn" class="border border-slate-300 text-slate-700 px-4 py-2 rounded hover:bg-slate-100 transition">Xóa tất cả</button>
             </div>
+            <p class="text-sm text-slate-500 mt-2">* Nhập các giá trị cách nhau bằng dấu phẩy, sau đó bấm "Tạo biến thể" để tạo tất cả tổ hợp.</p>
+        </div>
 
-            <hr class="my-6">
-
-            <!-- Variants -->
-            <div>
-                <h3 class="text-lg font-medium text-gray-800">Biến thể (size, màu, tồn kho)</h3>
-                <div id="variants-container">
-                    <div class="variant-item grid grid-cols-5 gap-4 items-end mt-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500">SKU</label>
-                            <input type="text" name="variants[0][sku]" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200" required>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500">Màu</label>
-                            <input type="text" name="variants[0][color]" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200" required>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500">Size</label>
-                            <input type="text" name="variants[0][size]" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200" required>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500">Tồn kho</label>
-                            <input type="number" name="variants[0][stock_quantity]" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200" value="0">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500">Giá riêng</label>
-                            <input type="number" name="variants[0][price_override]" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200">
-                        </div>
-                    </div>
-                </div>
-                <button type="button" id="add-variant" class="mt-2 inline-flex items-center px-3 py-1 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">+ Thêm biến thể</button>
+        <!-- Bảng biến thể -->
+        <div class="border-t border-slate-200 pt-4 mt-4">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-lg font-semibold">Danh sách biến thể</h3>
+                <button type="button" id="add-row-btn" class="bg-black text-white px-4 py-1 rounded text-sm hover:bg-slate-800 transition">+ Thêm dòng thủ công</button>
             </div>
-
-            <div class="flex justify-end">
-                <button type="submit" class="px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900">Lưu sản phẩm</button>
+            <div class="overflow-x-auto">
+                <table class="w-full border text-sm">
+                    <thead>
+                        <tr class="bg-slate-100">
+                            <th class="border p-2 text-left">Size</th>
+                            <th class="border p-2 text-left">Màu</th>
+                            <th class="border p-2 text-left">Số lượng</th>
+                            <th class="border p-2 text-left">Giá bán (VNĐ)</th>
+                            <th class="border p-2 text-center">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="variant-table">
+                        <!-- Các dòng sẽ được thêm vào đây -->
+                    </tbody>
+                </table>
             </div>
-        </form>
-    </div>
+        </div>
 
-    @push('scripts')
-    <script>
-        // JS để thêm dòng variant
-        let variantIndex = 1;
-        document.getElementById('add-variant').addEventListener('click', function() {
-            const container = document.getElementById('variants-container');
-            const newRow = document.createElement('div');
-            newRow.className = 'variant-item grid grid-cols-5 gap-4 items-end mt-4';
-            newRow.innerHTML = `
-                <div><label class="block text-xs font-medium text-gray-500">SKU</label><input type="text" name="variants[${variantIndex}][sku]" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200" required></div>
-                <div><label class="block text-xs font-medium text-gray-500">Màu</label><input type="text" name="variants[${variantIndex}][color]" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200" required></div>
-                <div><label class="block text-xs font-medium text-gray-500">Size</label><input type="text" name="variants[${variantIndex}][size]" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200" required></div>
-                <div><label class="block text-xs font-medium text-gray-500">Tồn kho</label><input type="number" name="variants[${variantIndex}][stock_quantity]" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200" value="0"></div>
-                <div><label class="block text-xs font-medium text-gray-500">Giá riêng</label><input type="number" name="variants[${variantIndex}][price_override]" class="mt-1 w-full border-gray-300 rounded-lg shadow-sm focus:ring focus:ring-gray-200"></div>
-            `;
-            container.appendChild(newRow);
-            variantIndex++;
+        <div class="mt-6 flex gap-3">
+            <button type="submit" class="bg-black text-white px-6 py-2 rounded hover:bg-slate-800 transition">Lưu quần áo</button>
+            <a href="{{ route('admin.dashboard') }}" class="bg-slate-200 text-slate-700 px-6 py-2 rounded hover:bg-slate-300 transition">Hủy</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let rowCount = 0;
+    const tableBody = document.getElementById('variant-table');
+    const generateBtn = document.getElementById('generate-variants-btn');
+    const clearBtn = document.getElementById('clear-variants-btn');
+    const addRowBtn = document.getElementById('add-row-btn');
+
+    // Thêm một dòng mới vào bảng
+    function addRow(size = '', color = '', quantity = '', price = '') {
+        const row = document.createElement('tr');
+        row.dataset.index = rowCount;
+        row.innerHTML = `
+            <td class="border p-1">
+                <input type="text" name="variants[${rowCount}][size]" value="${size}" class="w-full border-none focus:ring-0" placeholder="M">
+            </td>
+            <td class="border p-1">
+                <input type="text" name="variants[${rowCount}][color]" value="${color}" class="w-full border-none focus:ring-0" placeholder="Trắng">
+            </td>
+            <td class="border p-1">
+                <input type="number" name="variants[${rowCount}][quantity]" value="${quantity}" class="w-full border-none focus:ring-0" placeholder="0" min="0">
+            </td>
+            <td class="border p-1">
+                <input type="number" step="1000" name="variants[${rowCount}][price_override]" value="${price}" class="w-full border-none focus:ring-0" placeholder="Giá bán">
+            </td>
+            <td class="border p-1 text-center">
+                <button type="button" class="remove-row text-red-500 hover:text-red-700 transition" title="Xóa dòng">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </td>
+        `;
+        row.querySelector('.remove-row').addEventListener('click', function() {
+            row.remove();
+            reindexRows();
         });
-    </script>
-    @endpush
+        tableBody.appendChild(row);
+        rowCount++;
+        reindexRows();
+    }
+
+    // Cập nhật lại chỉ số index cho các dòng
+    function reindexRows() {
+        const rows = tableBody.querySelectorAll('tr');
+        rows.forEach((row, index) => {
+            row.dataset.index = index;
+            const inputs = row.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                const name = input.getAttribute('name');
+                if (name) {
+                    const newName = name.replace(/\[.*?\]/, `[${index}]`);
+                    input.setAttribute('name', newName);
+                }
+            });
+        });
+        rowCount = rows.length;
+    }
+
+    // Tạo biến thể từ các mảng
+    function generateVariants() {
+        const sizesInput = document.getElementById('cloth-sizes');
+        const colorsInput = document.getElementById('cloth-colors');
+
+        const sizes = sizesInput.value.split(',').map(s => s.trim()).filter(s => s);
+        const colors = colorsInput.value.split(',').map(c => c.trim()).filter(c => c);
+
+        if (!sizes.length || !colors.length) {
+            alert('Vui lòng nhập đầy đủ các trường Size và Màu sắc (cách nhau bằng dấu phẩy).');
+            return;
+        }
+
+        // Xóa các dòng hiện tại
+        tableBody.innerHTML = '';
+        rowCount = 0;
+
+        // Tạo tổ hợp Descartes
+        for (const size of sizes) {
+            for (const color of colors) {
+                addRow(size, color, '', '');
+            }
+        }
+    }
+
+    // Xóa toàn bộ bảng
+    function clearTable() {
+        if (tableBody.children.length === 0) return;
+        if (confirm('Bạn có chắc muốn xóa tất cả các dòng biến thể?')) {
+            tableBody.innerHTML = '';
+            rowCount = 0;
+        }
+    }
+
+    // Sự kiện
+    generateBtn.addEventListener('click', generateVariants);
+    clearBtn.addEventListener('click', clearTable);
+
+    addRowBtn.addEventListener('click', function() {
+        addRow('', '', '', '');
+    });
+
+    // Thêm một dòng mặc định khi load trang
+    addRow('', '', '', '');
+});
+</script>
 @endsection
+
+@include('admin.partials.toast')

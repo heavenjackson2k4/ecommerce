@@ -36,6 +36,21 @@ class ProductController extends Controller{
 
 
 
+    // Hiển thị form nhập giày
+        public function createShoe()
+        {
+            $categories = \App\Models\Category::where('status', 'active')->get();
+            return view('admin.nhap-giay', compact('categories'));
+        }
+
+        // Hiển thị form nhập quần áo
+        public function createCloth()
+        {
+            $categories = \App\Models\Category::where('status', 'active')->get();
+            return view('admin.nhap-quan-ao', compact('categories'));
+        }
+
+
     // app/Http/Controllers/Admin/ProductController.php
 
 public function storeShoe(Request $request)
@@ -47,18 +62,34 @@ public function storeShoe(Request $request)
         'base_price' => 'required|numeric|min:0',
         'description' => 'nullable|string',
         'status' => ['nullable', Rule::in(['draft', 'active', 'archived'])],
-        // Thông tin giày
-        'stud_type' => 'required|string|max:20',
         'silo' => 'nullable|string|max:100',
-        // Variants: phải có ít nhất 1 variant
-        'variants' => 'required|array|min:1',
-        'variants.*.sku' => 'required|string|max:100|unique:product_variants,sku',
-        'variants.*.color' => 'required|string|max:50',
-        'variants.*.size' => 'required|string|max:20', // size giày: 39, 40, 41...
-        'variants.*.stock_quantity' => 'nullable|integer|min:0',
+
+        // Ít nhất phải có variants hoặc (sizes & colors & stud_types)
+        'variants' => 'nullable|array',
+        'variants.*.size' => 'required_with:variants|string|max:20',
+        'variants.*.color' => 'required_with:variants|string|max:50',
+        'variants.*.stud_type' => 'required_with:variants|string|max:20',
+        'variants.*.quantity' => 'nullable|integer|min:0',
         'variants.*.price_override' => 'nullable|numeric|min:0',
         'variants.*.status' => ['nullable', Rule::in(['active', 'inactive'])],
+
+        'sizes' => 'nullable|array',
+        'sizes.*' => 'string|max:20',
+        'colors' => 'nullable|array',
+        'colors.*' => 'string|max:50',
+        'stud_types' => 'nullable|array',
+        'stud_types.*' => 'string|max:20',
     ]);
+
+    // Kiểm tra nếu không có dữ liệu biến thể nào
+    $hasVariants = !empty($validated['variants']);
+    $hasAuto = !empty($validated['sizes']) && !empty($validated['colors']) && !empty($validated['stud_types']);
+    
+    if (!$hasVariants && !$hasAuto) {
+        return redirect()->back()
+            ->withInput()
+            ->withErrors(['variants' => 'Vui lòng nhập ít nhất một biến thể (tự động hoặc thủ công).']);
+    }
 
     // Chuẩn bị dữ liệu cho service
     $data = [
@@ -69,15 +100,32 @@ public function storeShoe(Request $request)
         'base_price' => $validated['base_price'],
         'description' => $validated['description'] ?? null,
         'status' => $validated['status'] ?? 'active',
-        'shoe_detail' => [
-            'stud_type' => $validated['stud_type'],
-            'silo' => $validated['silo'] ?? null,
-        ],
-        'variants' => $validated['variants'],
+        'shoe_detail' => ['silo' => $validated['silo'] ?? null],
     ];
 
-    $product = $this->productService->createProduct($data);
-    return response()->json(['message' => 'Shoe created successfully', 'data' => $product], 201);
+    if ($hasVariants) {
+        $data['variants'] = $validated['variants'];
+    } else {
+        $data['sizes'] = $validated['sizes'];
+        $data['colors'] = $validated['colors'];
+        $data['stud_types'] = $validated['stud_types'];
+    }
+
+    try {
+        $product = $this->productService->createProduct($data);
+        
+        if ($request->wantsJson() || $request->is('api/*')) {
+            return response()->json(['message' => 'Shoe created successfully', 'data' => $product], 201);
+        }
+
+        return redirect()->route('admin.nhap-giay')->with('success', 'Thêm giày thành công!');
+    } catch (\Exception $e) {
+        // Log lỗi để debug
+        \Log::error('Lỗi tạo giày: ' . $e->getMessage());
+        return redirect()->back()
+            ->withInput()
+            ->withErrors(['error' => 'Có lỗi xảy ra: ' . $e->getMessage()]);
+    }
 }
 
 public function storeCloth(Request $request)
@@ -89,18 +137,20 @@ public function storeCloth(Request $request)
         'base_price' => 'required|numeric|min:0',
         'description' => 'nullable|string',
         'status' => ['nullable', Rule::in(['draft', 'active', 'archived'])],
-        // Thông tin quần áo
         'sleeve_type' => ['required', Rule::in(['SHORT', 'LONG'])],
-        // Variants: phải có ít nhất 1 variant
-        'variants' => 'required|array|min:1',
-        'variants.*.sku' => 'required|string|max:100|unique:product_variants,sku',
-        'variants.*.color' => 'required|string|max:50',
-        'variants.*.size' => 'required|string|max:20', // size áo: S, M, L, XL...
-        'variants.*.stock_quantity' => 'nullable|integer|min:0',
+        // Variants: có thể là mảng hoặc để trống (nếu dùng tự động)
+        'variants' => 'nullable|array',
+        'variants.*.size' => 'required_with:variants|string|max:20',
+        'variants.*.color' => 'required_with:variants|string|max:50',
+        'variants.*.quantity' => 'nullable|integer|min:0',
         'variants.*.price_override' => 'nullable|numeric|min:0',
         'variants.*.status' => ['nullable', Rule::in(['active', 'inactive'])],
+        // Các trường tạo tự động
+        'sizes' => 'nullable|string',
+        'colors' => 'nullable|string',
     ]);
 
+    // Chuẩn bị dữ liệu
     $data = [
         'category_id' => $validated['category_id'],
         'name' => $validated['name'],
@@ -109,13 +159,35 @@ public function storeCloth(Request $request)
         'base_price' => $validated['base_price'],
         'description' => $validated['description'] ?? null,
         'status' => $validated['status'] ?? 'active',
-        'cloth_detail' => [
-            'sleeve_type' => $validated['sleeve_type'],
-        ],
-        'variants' => $validated['variants'],
+        'cloth_detail' => ['sleeve_type' => $validated['sleeve_type']],
     ];
 
-    $product = $this->productService->createProduct($data);
-    return response()->json(['message' => 'Cloth created successfully', 'data' => $product], 201);
+    // Xử lý variants
+    if (!empty($validated['variants'])) {
+        $data['variants'] = $validated['variants'];
+    } else {
+        // Chuyển chuỗi thành mảng
+        $sizes = !empty($validated['sizes']) ? array_map('trim', explode(',', $validated['sizes'])) : [];
+        $colors = !empty($validated['colors']) ? array_map('trim', explode(',', $validated['colors'])) : [];
+        if (!empty($sizes) && !empty($colors)) {
+            $data['sizes'] = $sizes;
+            $data['colors'] = $colors;
+        } else {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['variants' => 'Vui lòng nhập ít nhất một biến thể (tự động hoặc thủ công).']);
+        }
+    }
+
+    try {
+        $product = $this->productService->createProduct($data);
+        return redirect()->route('admin.nhap-quan-ao')
+            ->with('success', 'Thêm quần áo thành công!');
+    } catch (\Exception $e) {
+        \Log::error('Lỗi tạo quần áo: ' . $e->getMessage());
+        return redirect()->back()
+            ->withInput()
+            ->withErrors(['error' => 'Có lỗi xảy ra: ' . $e->getMessage()]);
+    }
 }
 }
