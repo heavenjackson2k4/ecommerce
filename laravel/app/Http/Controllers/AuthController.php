@@ -7,7 +7,9 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+
 
 class AuthController extends Controller
 {
@@ -17,27 +19,54 @@ class AuthController extends Controller
         return view('auth.login');
     }
 
-    public function login(Request $request){
+    public function login(Request $request)
+    {
         $request->validate([
-            'email'=>'required|email',
-            'password'=>'required'
+            'email' => 'required|email',
+            'password' => 'required'
         ]);
 
-        $credentials = $request->only('email', 'password');
-        $remember = $request->has('remember');
-
-        if(Auth::attempt(($credentials), $remember)){
-            $request->session()->regenerate();
-            $user = Auth::user();
-            if($user->isAdmin()){
-                return redirect()->route('admin.dashboard');
-            }
-            return redirect()->route('customer.dashboard');
+        if (!Auth::attempt($request->only('email', 'password'))) {
+            throw ValidationException::withMessages([
+                'email' => 'The provided credentials do not match our records.',
+            ]);
         }
 
-        throw ValidationException::withMessages([
-            'email' => 'The provided credentials do not match our records.',
-        ]);
+        $user = Auth::user();
+
+        // Kiểm tra request muốn JSON response (từ API/Postman)
+        if ($request->wantsJson()) {
+            // API Response - Tạo Sanctum token
+            $user->tokens()->delete();
+            $token = $user->createToken('api-token')->plainTextToken;
+            if ($token) {
+                Log::info('Token được tạo thành công cho User ID ' . $user->id . ': ' . $token);
+            } else {
+                Log::warning('Token không được tạo cho User ID ' . $user->id);
+            }
+            return response()->json([
+                'message' => 'Login successful',
+                'token' => $token,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                ],
+            ], 200);
+        }
+
+        // Web Response - Session-based login with remember me
+        $remember = $request->has('remember');
+        
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
+        
+        if ($user->isAdmin()) {
+            return redirect()->route('admin.dashboard');
+        }
+        return redirect()->route('customer.dashboard');
     }
 
     public function showRegister(){
@@ -72,5 +101,37 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect('/login')->with('success', 'You have been logged out.');
+    }
+
+    /**
+     * API Logout - Huỷ Sanctum Token
+     */
+    public function apiLogout(Request $request)
+    {
+        if ($request->user()) {
+            $request->user()->currentAccessToken()->delete();
+        }
+
+        return response()->json([
+            'message' => 'Logout successful'
+        ], 200);
+    }
+
+    /**
+     * Lấy thông tin user hiện tại
+     */
+    public function getCurrentUser(Request $request)
+    {
+        $user = $request->user();
+        
+        return response()->json([
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'phone' => $user->phone,
+            ]
+        ], 200);
     }
 }
