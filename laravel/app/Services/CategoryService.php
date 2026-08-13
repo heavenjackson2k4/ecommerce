@@ -18,7 +18,7 @@ class CategoryService{
         return Category::with('parent','children')->findOrFail($id);
     }
 
-    public function createCatgory(array $data){
+    public function createCategory(array $data){
         return Category::create($data);
     }
 

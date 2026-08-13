@@ -11,6 +11,16 @@ use App\Models\Product;
 
 class VariantService{
 
+    public function getByProduct(int $productId)
+    {
+        return ProductVariant::where('product_id', $productId)->get();
+    }
+
+    public function getById(int $id): ProductVariant
+    {
+        return ProductVariant::with('product')->findOrFail($id);
+    }
+
     public function getVariantsByProduct($productId){
         return ProductVariant::where('product_id', $productId)->get();
     }
