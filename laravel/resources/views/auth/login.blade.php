@@ -19,7 +19,7 @@
     @endif
 
     <!-- Form -->
-    <form method="POST" action="{{ route('login.post') }}" class="mt-6 space-y-5" x-data="{ showPassword: false }">
+    <form id="loginForm" class="mt-6 space-y-5" x-data="{ showPassword: false }">
         @csrf
 
         <!-- Email -->
@@ -90,4 +90,43 @@
         </p>
     </form>
 </div>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const email = document.querySelector('[name="email"]').value;
+    const password = document.querySelector('[name="password"]').value;
+    const csrf = document.querySelector('[name="_token"]').value;
+    
+    try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrf
+            },
+            body: JSON.stringify({ email, password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.token) {
+            // ✅ Lưu token vào localStorage
+            localStorage.setItem('token', data.token);
+            
+            // ✅ Redirect tới dashboard
+            window.location.href = data.user.role === 'admin' 
+                ? '/admin/dashboard' 
+                : '/customer/dashboard';
+        } else {
+            // ❌ Hiện lỗi
+            alert(data.message || 'Đăng nhập thất bại');
+        }
+    } catch (error) {
+        alert('Lỗi: ' + error.message);
+    }
+});
+</script>
 @endsection

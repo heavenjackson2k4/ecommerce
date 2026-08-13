@@ -17,13 +17,13 @@ Route::post('/register', [AuthController::class, 'register'])->name('register.po
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function (){
+Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function (){
     Route::get('/dashboard', function(){
         return view('admin.dashboard');
     })->name('admin.dashboard');
 });
 
-Route::middleware(['auth', 'role:customer'])->prefix('customer')->group(function () {
+Route::middleware(['auth:sanctum', 'role:customer'])->prefix('customer')->group(function () {
     Route::get('/dashboard', function () {
         return view('customer.dashboard');
     })->name('customer.dashboard');
