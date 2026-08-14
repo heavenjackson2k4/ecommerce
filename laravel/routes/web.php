@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Customer\ProductController as CustomerProductController;
 
 Route::get('/', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
@@ -29,6 +31,11 @@ Route::middleware(['auth', 'role:customer'])->prefix('customer')->group(function
     Route::get('/dashboard', function () {
         return view('customer.dashboard');
     })->name('customer.dashboard');
+
+// Customer Routes
+Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/products', [CustomerProductController::class, 'index'])->name('products.index');
+Route::get('/products/{slug}', [CustomerProductController::class, 'show'])->name('products.show');
 });
 
 Route::get('/dashboard', function () {
