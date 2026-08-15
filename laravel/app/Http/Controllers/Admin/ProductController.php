@@ -55,6 +55,17 @@ class ProductController extends Controller{
 
 public function storeShoe(Request $request)
 {
+
+    if ($request->has('images') && is_array($request->images)) {
+        $images = $request->images;
+        foreach ($images as $key => $image) {
+            if (isset($image['is_primary'])) {
+                $images[$key]['is_primary'] = filter_var($image['is_primary'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            }
+        }
+        $request->merge(['images' => $images]);
+    }
+    // dd($request->input('images'));
     $validated = $request->validate([
         'category_id' => 'required|exists:categories,id',
         'name' => 'required|string|max:255',
@@ -79,7 +90,21 @@ public function storeShoe(Request $request)
         'colors.*' => 'string|max:50',
         'stud_types' => 'nullable|array',
         'stud_types.*' => 'string|max:20',
+
+
+        // Trong storeShoe, thêm rules:
+        'images' => 'nullable|array|max:20',
+        'images.*.image_url' => 'required|string|max:500',
+        'images.*.public_id' => 'required|string|max:255',
+        'images.*.color' => 'required|string|max:50',
+        'images.*.stud_type' => 'nullable|string|max:20',
+        'images.*.is_primary' => 'nullable|boolean',
+        'images.*.display_order' => 'nullable|integer|min:0',
     ]);
+
+    if (isset($validated['images'])) {
+            $data['images'] = $validated['images'];
+        }
 
     // Kiểm tra nếu không có dữ liệu biến thể nào
     $hasVariants = !empty($validated['variants']);
@@ -130,6 +155,16 @@ public function storeShoe(Request $request)
 
 public function storeCloth(Request $request)
 {
+
+    if ($request->has('images') && is_array($request->images)) {
+        $images = $request->images;
+        foreach ($images as $key => $image) {
+            if (isset($image['is_primary'])) {
+                $images[$key]['is_primary'] = filter_var($image['is_primary'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            }
+        }
+        $request->merge(['images' => $images]);
+    }
     $validated = $request->validate([
         'category_id' => 'required|exists:categories,id',
         'name' => 'required|string|max:255',
@@ -148,6 +183,15 @@ public function storeCloth(Request $request)
         // Các trường tạo tự động
         'sizes' => 'nullable|string',
         'colors' => 'nullable|string',
+
+
+        'images' => 'nullable|array|max:20',
+        'images.*.image_url' => 'required|string|max:500',
+        'images.*.public_id' => 'required|string|max:255',
+        'images.*.color' => 'required|string|max:50',
+        'images.*.is_primary' => 'nullable|boolean',
+        'images.*.display_order' => 'nullable|integer|min:0',
+
     ]);
 
     // Chuẩn bị dữ liệu
@@ -161,6 +205,10 @@ public function storeCloth(Request $request)
         'status' => $validated['status'] ?? 'active',
         'cloth_detail' => ['sleeve_type' => $validated['sleeve_type']],
     ];
+
+    if (isset($validated['images'])) {
+        $data['images'] = $validated['images'];
+    }
 
     // Xử lý variants
     if (!empty($validated['variants'])) {

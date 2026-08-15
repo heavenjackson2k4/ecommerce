@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Customer\ProductController as CustomerProductController;
+use App\Http\Controllers\Admin\ImageUploadController;
 
 Route::get('/', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
@@ -25,6 +26,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
 
     Route::post('/shoes', [ProductController::class, 'storeShoe'])->name('admin.shoes.store');
     Route::post('/clothes', [ProductController::class, 'storeCloth'])->name('admin.clothes.store');
+
+    Route::post('/upload-image', [ImageUploadController::class, 'upload'])->name('admin.upload.image');
 });
 
 Route::middleware(['auth', 'role:customer'])->prefix('customer')->group(function () {

@@ -7,6 +7,9 @@ use App\Models\ShoesVariant;
 use App\Models\ClothesVariant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\Shoe;
+use App\Models\Cloth;
+
 
 class ProductService
 {
@@ -61,8 +64,42 @@ class ProductService
             // Tạo biến thể
             $this->createVariants($product, $data);
 
+            // ===== THÊM VÀO SAU KHI TẠO VARIANTS =====
+            if ($data['product_type'] === 'SHOE' && isset($data['images'])) {
+                $this->saveShoeImages($product->shoe, $data['images']);
+            } elseif ($data['product_type'] === 'CLOTH' && isset($data['images'])) {
+                $this->saveClothImages($product->cloth, $data['images']);
+            }
+
             return $product->load(['shoesVariants', 'clothesVariants', 'shoe', 'cloth']);
         });
+    }
+
+    private function saveShoeImages(Shoe $shoe, array $images): void
+    {
+        foreach($images as $imageData){
+            $shoe->images()->create([
+            'image_url' => $imageData['image_url'],
+            'public_id' => $imageData['public_id'],
+            'color' => $imageData['color'],
+            'stud_type' => $imageData['stud_type'] ?? null,
+            'is_primary' => filter_var($imageData['is_primary'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'display_order' => $imageData['display_order'] ?? 0,
+            ]);
+        }
+    }
+
+    private function saveClothImages(Cloth $cloth, array $images): void
+    {
+        foreach($images as $imageData){
+            $cloth->images()->create([
+            'image_url' => $imageData['image_url'],
+            'public_id' => $imageData['public_id'],
+            'color' => $imageData['color'],
+            'is_primary' => filter_var($imageData['is_primary'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'display_order' => $imageData['display_order'] ?? 0,
+            ]);
+        }
     }
 
     /**
