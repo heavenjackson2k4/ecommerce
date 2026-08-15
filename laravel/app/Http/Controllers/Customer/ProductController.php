@@ -49,7 +49,7 @@ class ProductController extends Controller
             $query->where('name', 'LIKE', "%{$search}%");
         }
 
-        $sort = $request->get('sort', 'newest');
+        $sort = $request->input('sort', 'newest');
         switch ($sort) {
             case 'price_asc': $query->orderBy('base_price', 'asc'); break;
             case 'price_desc': $query->orderBy('base_price', 'desc'); break;

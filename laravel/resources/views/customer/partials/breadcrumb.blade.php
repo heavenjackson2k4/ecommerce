@@ -4,7 +4,7 @@
     <div class="container mx-auto px-4 sm:px-6">
         <ol class="flex flex-wrap items-center space-x-2 text-xs sm:text-sm text-gray-600">
             <li>
-                <a href="/" class="hover:text-black transition">Trang chủ</a>
+                <a href="{{ route('home') }}" class="hover:text-black transition">Trang chủ</a>
             </li>
             @foreach($items as $item)
                 <li>
