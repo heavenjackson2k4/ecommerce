@@ -6,6 +6,9 @@ use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Customer\ProductController as CustomerProductController;
 use App\Http\Controllers\Admin\ImageUploadController;
+use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Customer\CartController;
+use App\Http\Controllers\Customer\OrderController;
 
 Route::get('/', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
@@ -28,6 +31,12 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::post('/clothes', [ProductController::class, 'storeCloth'])->name('admin.clothes.store');
 
     Route::post('/upload-image', [ImageUploadController::class, 'upload'])->name('admin.upload.image');
+
+    Route::get('/orders', [AdminOrderController::class, 'index'])->name('admin.orders.index');
+    Route::get('/orders/{id}', [AdminOrderController::class, 'show'])->name('admin.orders.show');
+    Route::post('/orders/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('admin.orders.update-status');
+
+
 });
 
 Route::middleware(['auth', 'role:customer'])->prefix('customer')->group(function () {
@@ -35,11 +44,31 @@ Route::middleware(['auth', 'role:customer'])->prefix('customer')->group(function
         return view('customer.dashboard');
     })->name('customer.dashboard');
 
-// Customer Routes
-Route::get('/', [HomeController::class, 'index'])->name('home');
-Route::get('/products', [CustomerProductController::class, 'index'])->name('products.index');
-Route::get('/products/{slug}', [CustomerProductController::class, 'show'])->name('products.show');
+    // Customer Routes
+    Route::get('/', [HomeController::class, 'index'])->name('home');
+    Route::get('/products', [CustomerProductController::class, 'index'])->name('products.index');
+    Route::get('/products/{slug}', [CustomerProductController::class, 'show'])->name('products.show');
+
+
+    Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+    
+    // Checkout routes
+    Route::get('/checkout', [OrderController::class, 'checkout'])->name('checkout');
+    Route::post('/checkout', [OrderController::class, 'placeOrder'])->name('checkout.place');
+
+    // Order history
+    Route::get('/customer/orders', [OrderController::class, 'index'])->name('customer.orders');
+    Route::get('/customer/orders/{id}', [OrderController::class, 'show'])->name('customer.orders.show');
 });
+
+Route::middleware(['auth', 'role:customer'])->prefix('cart')->group(function (){
+        Route::post('/add', [CartController::class, 'add'])->name('api.cart.add');
+    Route::put('/update', [CartController::class, 'update'])->name('api.cart.update');
+    Route::delete('/remove', [CartController::class, 'remove'])->name('api.cart.remove');
+    Route::get('/count', [CartController::class, 'count'])->name('api.cart.count');
+})  ;
+
+
 
 Route::get('/dashboard', function () {
     return view('dashboard');
