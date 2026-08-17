@@ -128,6 +128,23 @@ public function storeShoe(Request $request)
         'shoe_detail' => ['silo' => $validated['silo'] ?? null],
     ];
 
+    // ===== THÊM VÀO SAU KHI TẠO $data = [ ... ] =====
+    if (isset($validated['images']) && is_array($validated['images'])) {
+        // Xử lý is_primary thành boolean (đã làm)
+        $images = $validated['images'];
+        foreach ($images as $key => $image) {
+            if (isset($image['is_primary'])) {
+                $images[$key]['is_primary'] = filter_var($image['is_primary'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            }
+            // Đảm bảo color không bị null
+            if (!isset($image['color']) || empty($image['color'])) {
+                // Nếu thiếu color, bỏ qua ảnh này
+                unset($images[$key]);
+            }
+        }
+        $data['images'] = array_values($images); // reset index
+    }
+
     if ($hasVariants) {
         $data['variants'] = $validated['variants'];
     } else {
@@ -206,9 +223,25 @@ public function storeCloth(Request $request)
         'cloth_detail' => ['sleeve_type' => $validated['sleeve_type']],
     ];
 
-    if (isset($validated['images'])) {
-        $data['images'] = $validated['images'];
+    // if (isset($validated['images'])) {
+    //     $data['images'] = $validated['images'];
+    // }
+    // ===== THÊM VÀO SAU KHI TẠO $data = [ ... ] =====
+if (isset($validated['images']) && is_array($validated['images'])) {
+    // Xử lý is_primary thành boolean (đã làm)
+    $images = $validated['images'];
+    foreach ($images as $key => $image) {
+        if (isset($image['is_primary'])) {
+            $images[$key]['is_primary'] = filter_var($image['is_primary'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        }
+        // Đảm bảo color không bị null
+        if (!isset($image['color']) || empty($image['color'])) {
+            // Nếu thiếu color, bỏ qua ảnh này
+            unset($images[$key]);
+        }
     }
+    $data['images'] = array_values($images); // reset index
+}
 
     // Xử lý variants
     if (!empty($validated['variants'])) {

@@ -31,26 +31,27 @@ class ImageUploadController extends Controller
             ], 422);
         }
 
-        $file = $request->file('image');
-        $color = $request->input('color');
-        $studType = $request->input('stud_type');
+            $file = $request->file('image');
+            $color = $request->input('color');
+            $studType = $request->input('stud_type');
+            $productType = $request->input('product_type', 'shoes'); // default
 
-        // Tạo public_id duy nhất theo thời gian
-        $publicId = 'products/' . date('Y/m/d') . '/' . uniqid() . '_' . time();
+            // Xác định folder
+            $folder = 'ecommerce/' . ($productType === 'clothes' ? 'clothes' : 'shoes');
 
-        $options = [
-            'folder' => 'ecommerce/' . date('Y/m/d'),
-            'public_id' => $publicId,
-            'upload_preset' => env('CLOUDINARY_UPLOAD_PRESET'), // Nếu có preset
-        ];
+            // Nếu có stud_type, thêm vào public_id để phân biệt
+            $publicId = uniqid() . '_' . time();
+            if ($studType) {
+                $publicId .= '_' . $studType;
+            }
 
-        // Nếu có stud_type, thêm vào public_id để phân biệt
-        if ($studType) {
-            $options['public_id'] = $publicId . '_' . $studType;
-            $options['folder'] = 'ecommerce/' . date('Y/m/d') . '/' . $studType;
-        }
+            $options = [
+                'folder' => $folder,
+                'public_id' => $publicId,
+                'upload_preset' => env('CLOUDINARY_UPLOAD_PRESET'),
+            ];
 
-        $result = $this->cloudinaryService->upload($file, $options);
+            $result = $this->cloudinaryService->upload($file, $options);
 
         if (!$result['success']) {
             return response()->json([

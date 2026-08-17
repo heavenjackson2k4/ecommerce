@@ -223,6 +223,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function getColorsFromVariants() {
         const rows = document.querySelectorAll('#variant-body .variant-row');
+        console.log("row table nhap giay: ", rows);
         const colors = new Set();
         rows.forEach(row => {
             const colorInput = row.querySelector('input[name*="[color]"]');
@@ -236,6 +237,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderImageSections() {
         const container = document.getElementById('color-image-sections');
         const colors = getColorsFromVariants();
+        console.log("color giay: ", colors);
         const existingData = {};
         
         // Lưu dữ liệu ảnh cũ từ các section
@@ -315,6 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData();
         formData.append('image', file);
         formData.append('color', color);
+        formData.append('product_type', 'shoes');
         if (studType) formData.append('stud_type', studType);
 
         try {
