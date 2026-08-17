@@ -10,56 +10,54 @@
 @endsection
 
 @section('content')
+    @php
+        $shoe = $product->shoe;
+        $cloth = $product->cloth;
+        $images = $shoe ? $shoe->images()->orderBy('display_order')->get() : ($cloth ? $cloth->images()->orderBy('display_order')->get() : collect());
+        $colors = $images->pluck('color')->unique();
+        $primaryImage = $images->where('is_primary', true)->first();
+        $firstImage = $images->first();
+        $defaultImage = $primaryImage ?? $firstImage;
+    @endphp
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-        <!-- Product Image -->
-        {{-- <div class="bg-gray-100 rounded-lg aspect-square flex items-center justify-center">
-            <svg class="w-16 h-16 sm:w-24 sm:h-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-        </div>--}}
+        <!-- Cột trái: Ảnh chính + Gallery -->
+        <div class="space-y-4">
+            <!-- Ảnh chính -->
+            <div class="bg-gray-100 rounded-lg aspect-square flex items-center justify-center relative overflow-hidden">
+                <div id="main-image-container">
+                    @if($defaultImage)
+                        <img src="{{ $defaultImage->image_url }}" id="main-product-image" class="w-full h-full object-cover">
+                    @else
+                        <svg class="w-16 h-16 sm:w-24 sm:h-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    @endif
+                </div>
+            </div>
 
-        @php
-    $shoe = $product->shoe;
-    $cloth = $product->cloth;
-    $images = $shoe ? $shoe->images()->orderBy('display_order')->get() : ($cloth ? $cloth->images()->orderBy('display_order')->get() : collect());
-    $colors = $images->pluck('color')->unique();
-@endphp
-
-<div class="bg-gray-100 rounded-lg aspect-square flex items-center justify-center relative overflow-hidden">
-    <div id="main-image-container">
-        @if($images->where('is_primary', true)->first())
-            <img src="{{ $images->where('is_primary', true)->first()->image_url }}" id="main-product-image" class="w-full h-full object-cover">
-        @elseif($images->first())
-            <img src="{{ $images->first()->image_url }}" id="main-product-image" class="w-full h-full object-cover">
-        @else
-            <svg class="w-16 h-16 sm:w-24 sm:h-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-        @endif
-    </div>
-</div>
-
-<!-- Thêm thumbnail gallery -->
-@if($images->count() > 0)
-<div class="flex gap-2 mt-4 overflow-x-auto pb-2">
-    @foreach($images->groupBy('color') as $color => $colorImages)
-        <div class="flex-shrink-0">
-            <div class="text-xs text-gray-500 mb-1">{{ $color }}</div>
-            <div class="flex gap-1">
-                @foreach($colorImages as $image)
-                    <img src="{{ $image->image_url }}" 
-                         class="w-12 h-12 object-cover rounded border-2 {{ $loop->first && $color == ($images->where('is_primary', true)->first()->color ?? $images->first()->color) ? 'border-black' : 'border-transparent' }} hover:border-gray-400 cursor-pointer thumbnail"
-                         data-full="{{ $image->image_url }}"
-                         data-color="{{ $color }}"
-                         onclick="changeMainImage(this)">
+            <!-- Gallery ảnh (nằm dưới ảnh chính) -->
+            @if($images->count() > 0)
+            <div class="flex flex-wrap gap-2">
+                @foreach($images->groupBy('color') as $color => $colorImages)
+                    <div class="flex-shrink-0">
+                        <div class="text-xs text-gray-500 mb-1">{{ $color }}</div>
+                        <div class="flex gap-1">
+                            @foreach($colorImages as $image)
+                                <img src="{{ $image->image_url }}" 
+                                     class="w-12 h-12 object-cover rounded border-2 {{ $loop->first && $color == ($defaultImage->color ?? $firstImage->color ?? '') ? 'border-black' : 'border-transparent' }} hover:border-gray-400 cursor-pointer thumbnail"
+                                     data-full="{{ $image->image_url }}"
+                                     data-color="{{ $color }}"
+                                     onclick="changeMainImage(this)">
+                            @endforeach
+                        </div>
+                    </div>
                 @endforeach
             </div>
+            @endif
         </div>
-    @endforeach
-</div>
-@endif
 
-        <!-- Product Info -->
+        <!-- Cột phải: Thông tin sản phẩm -->
         <div>
             <h1 class="text-xl sm:text-2xl font-bold text-gray-900">{{ $product->name }}</h1>
             <p class="text-2xl sm:text-3xl font-bold text-gray-900 mt-2">{{ number_format($product->base_price, 0, ',', '.') }} ₫</p>
@@ -190,13 +188,12 @@
             alert('Thêm vào giỏ hàng thành công!');
         });
 
-
-
-function changeMainImage(el) {
-    document.getElementById('main-product-image').src = el.dataset.full;
-    document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('border-black'));
-    el.classList.add('border-black');
-}
+        // Hàm changeMainImage
+        window.changeMainImage = function(el) {
+            document.getElementById('main-product-image').src = el.dataset.full;
+            document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('border-black'));
+            el.classList.add('border-black');
+        };
     });
 </script>
 @endpush
