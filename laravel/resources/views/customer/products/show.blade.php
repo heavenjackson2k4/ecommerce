@@ -124,17 +124,20 @@
                     </div>
                 </div>
 
-                <!-- Buttons -->
-                <div class="mt-5 sm:mt-6 flex flex-col sm:flex-row gap-3">
-                    <button id="add-to-cart" class="flex-1 bg-black text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg hover:bg-gray-800 transition font-medium text-sm sm:text-base">
-                        Thêm vào giỏ hàng
-                    </button>
-                    <button id="wishlist-btn" class="flex items-center justify-center border border-gray-300 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg hover:bg-gray-50 transition">
-                        <svg class="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                        </svg>
-                    </button>
-                </div>
+            <!-- Buttons -->
+            <div class="mt-5 sm:mt-6 flex flex-col sm:flex-row gap-3">
+                <button id="add-to-cart" class="flex-1 bg-black text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg hover:bg-gray-800 transition font-medium text-sm sm:text-base">
+                    Thêm vào giỏ hàng
+                </button>
+                <button id="buy-now" class="flex-1 bg-green-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg hover:bg-green-700 transition font-medium text-sm sm:text-base">
+                    Mua ngay
+                </button>
+                <button id="wishlist-btn" class="flex items-center justify-center border border-gray-300 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg hover:bg-gray-50 transition">
+                    <svg class="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                </button>
+            </div>
             </div>
         </div>
     </div>
@@ -194,6 +197,58 @@
             document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('border-black'));
             el.classList.add('border-black');
         };
+
+            // Mua ngay
+document.getElementById('buy-now')?.addEventListener('click', function() {
+    const sizeBtn = document.querySelector('.size-option.border-black');
+    const colorBtn = document.querySelector('.color-option.border-black');
+    const studBtn = document.querySelector('.stud-option.border-black');
+    const quantity = parseInt(document.getElementById('quantity').value) || 1;
+    
+    if (!sizeBtn || !colorBtn) {
+        alert('Vui lòng chọn size và màu sắc.');
+        return;
+    }
+    
+    const size = sizeBtn.dataset.size;
+    const color = colorBtn.dataset.color;
+    const studType = studBtn ? studBtn.dataset.stud : null;
+    
+    // Thêm vào giỏ hàng trước khi chuyển đến checkout
+    const productId = {{ $product->id }};
+    
+    fetch('{{ route("api.cart.add") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        },
+        body: JSON.stringify({
+            product_id: productId,
+            size: size,
+            color: color,
+            stud_type: studType,
+            quantity: quantity,
+        }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (window.updateCartCount) {
+                window.updateCartCount(data.cart_count);
+            }
+            window.location.href = '{{ route("checkout") }}';
+        } else {
+            alert(data.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Có lỗi xảy ra. Vui lòng thử lại.');
+    });
+});
+
+
     });
 </script>
 @endpush

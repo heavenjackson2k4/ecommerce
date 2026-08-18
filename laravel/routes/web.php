@@ -57,16 +57,20 @@ Route::middleware(['auth', 'role:customer'])->prefix('customer')->group(function
     Route::post('/checkout', [OrderController::class, 'placeOrder'])->name('checkout.place');
 
     // Order history
-    Route::get('/customer/orders', [OrderController::class, 'index'])->name('customer.orders');
-    Route::get('/customer/orders/{id}', [OrderController::class, 'show'])->name('customer.orders.show');
+    Route::get('/orders', [OrderController::class, 'index'])->name('customer.orders');
+    Route::get('/orders/{id}', [OrderController::class, 'show'])->name('customer.orders.show');
 });
 
 Route::middleware(['auth', 'role:customer'])->prefix('cart')->group(function (){
-        Route::post('/add', [CartController::class, 'add'])->name('api.cart.add');
+    Route::post('/add', [CartController::class, 'add'])->name('api.cart.add');
     Route::put('/update', [CartController::class, 'update'])->name('api.cart.update');
     Route::delete('/remove', [CartController::class, 'remove'])->name('api.cart.remove');
     Route::get('/count', [CartController::class, 'count'])->name('api.cart.count');
-})  ;
+    // Cart mini - partial view
+    Route::get('/mini', function () {
+        return view('customer.partials.cart-mini');
+    })->name('cart.mini');
+}) ;
 
 
 

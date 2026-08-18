@@ -17,9 +17,9 @@ class Cart extends Model
         'total'
     ];
 
-    protected $casts = [
-        'total'=>'decimal'
-    ];
+    // protected $casts = [
+    //     'total'=>'decimal'
+    // ];
 
     public function user(): BelongsTo
     {
@@ -31,11 +31,11 @@ class Cart extends Model
         return $this->hasMany(CartItem::class);
     }
 
-    public function getTotalAttribute(){
-        return $this->items->sum(function ($item){
-            return $item->price * $item->quantity;
-        });
-    }
+    // public function getTotalAttribute(){
+    //     return $this->items->sum(function ($item){
+    //         return $item->price * $item->quantity;
+    //     });
+    // }
 
     public function getTotalItemAttribute(){
         return $this->items->sum('quantity');

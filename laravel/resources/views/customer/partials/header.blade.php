@@ -108,4 +108,70 @@
             });
         }
     });
+
+// ===== CẬP NHẬT SỐ LƯỢNG GIỎ HÀNG =====
+function updateCartCount(count) {
+    const badge = document.querySelector('#cart-toggle span');
+    if (badge) {
+        badge.textContent = count;
+    }
+}
+
+function getCartCount() {
+    fetch('/cart/count', {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.cart_count !== undefined) {
+            updateCartCount(data.cart_count);
+        }
+    })
+    .catch(error => console.error('Error fetching cart count:', error));
+}
+
+// Gọi khi trang load
+document.addEventListener('DOMContentLoaded', function() {
+    getCartCount();
+});
+
+// Gọi lại khi có sự kiện thêm vào giỏ hàng
+window.updateCartCount = updateCartCount;
+
+
+
+// ===== CẬP NHẬT CART MINI =====
+function loadCartMini() {
+    // Reload lại cart mini bằng AJAX
+    fetch('{{ route("cart.mini") }}', {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        },
+    })
+    .then(response => response.text())
+    .then(html => {
+        const cartMiniContainer = document.querySelector('#cart-mini');
+        if (cartMiniContainer) {
+            // Cập nhật nội dung cart mini
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const newCartMini = tempDiv.querySelector('#cart-mini');
+            if (newCartMini) {
+                cartMiniContainer.outerHTML = newCartMini.outerHTML;
+            }
+            // Cập nhật badge
+            const count = parseInt(document.querySelector('#cart-mini .flex.justify-between.items-center span.text-xs')?.textContent) || 0;
+            updateCartCount(count);
+        }
+    })
+    .catch(error => console.error('Error loading cart mini:', error));
+}
+
+// Gắn hàm vào global để sử dụng ở các nơi khác
+window.loadCartMini = loadCartMini;
+    
 </script>

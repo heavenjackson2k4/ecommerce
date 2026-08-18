@@ -10,6 +10,7 @@ use App\Jobs\SendOrderNotificationJob;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class OrderService
 {
@@ -27,7 +28,7 @@ class OrderService
             throw new Exception('Giỏ hàng trống');
         }
 
-        $orderCode = 'ORD-' . date('YMD') . '-' . strtoupper(uniqid());
+        $orderCode = 'ORD-' . date('YMD') . '-' . strtoupper(Str::random(5));
         DB::beginTransaction();
         try{
 
@@ -67,7 +68,7 @@ class OrderService
             $this->cartService->clearCart();
             DB::commit();
 
-            SendOrderNotificationJob::dispatch($order);
+            // SendOrderNotificationJob::dispatch($order);
             return $order->load('items');
 
         }catch(Exception $e){
@@ -96,7 +97,7 @@ class OrderService
                     ->get();
     }
 
-    public function getORderById($orderId){
+    public function getOrderById($orderId){
         return Order::with('user', 'items.product')
                 ->findOrFail($orderId);
     }

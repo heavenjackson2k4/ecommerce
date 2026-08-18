@@ -30,56 +30,115 @@ class CartController extends Controller
      /**
      * Thêm sản phẩm vào giỏ hàng (AJAX)
      */
-    public function add(Request $request){
-        $validator =Validator::make($request->all(), [
-            'product_id'=> 'required|exists:products,id',
-            'size' => 'required|string|max:20',
-            'color' => 'required|string|max:50',
-            'stud_type' => 'nullable|string|max:20',
-            'quantity' => 'required|integer|min:1',
+    // public function add(Request $request){
+    //     $validator =Validator::make($request->all(), [
+    //         'product_id'=> 'required|exists:products,id',
+    //         'size' => 'required|string|max:20',
+    //         'color' => 'required|string|max:50',
+    //         'stud_type' => 'nullable|string|max:20',
+    //         'quantity' => 'required|integer|min:1',
+    //     ]);
+
+    //     if($validator->fails()){
+    //         return response()->json([
+    //             'success'=>false,
+    //             'errors'=>$validator->errors()
+    //         ], 422);
+    //     }
+
+    //     try{
+
+    //     $product = Product::findOrFail($request->product_id);
+    //     if($product->product_type ==='SHOE' && empty($request->stud_type)){
+    //         return response()->json([
+    //             'success'=>false,
+    //             'message'=>'Vui lòng chọn loại đinh'
+    //         ], 400);
+    //     }
+
+    //     $cart = $this->cartService->addItem($product, [
+    //             'size' => $request->size,
+    //             'color' => $request->color,
+    //             'stud_type' => $request->stud_type,
+    //             'quantity' => $request->quantity,
+    //         ]);
+
+    //     $cartCount = $this->cartService->getCartCount();
+
+    //     return response()->json([
+    //             'success' => true,
+    //             'message' => 'Đã thêm vào giỏ hàng',
+    //             'cart_count' => $cartCount,
+    //             'cart_total' => $this->cartService->getCartTotal(),
+    //         ]);
+
+    //     }catch(Exception $e){
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => $e->getMessage()
+    //         ], 500);
+    //     }
+
+    // }
+
+public function add(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'product_id' => 'required|exists:products,id',
+        'variant_id' => 'required|integer',
+        'variant_type' => 'required|in:shoe,cloth',
+        'size' => 'required|string|max:20',
+        'color' => 'required|string|max:50',
+        'stud_type' => 'nullable|string|max:20',
+        'quantity' => 'required|integer|min:1',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors' => $validator->errors()
+        ], 422);
+    }
+
+    try {
+        $product = Product::findOrFail($request->product_id);
+        
+        $cart = $this->cartService->addItem($product, [
+            'variant_id' => $request->variant_id,
+            'variant_type' => $request->variant_type,
+            'size' => $request->size,
+            'color' => $request->color,
+            'stud_type' => $request->stud_type,
+            'quantity' => $request->quantity,
         ]);
 
-        if($validator->fails()){
-            return response()->json([
-                'success'=>false,
-                'errors'=>$validator->errors()
-            ], 422);
+        // Tính số lượng và tổng tiền từ items
+        $cartCount = 0;
+        $cartTotal = 0;
+        foreach ($cart->items as $item) {
+            $cartCount += $item->quantity;
+            $cartTotal += $item->price * $item->quantity;
         }
-
-        try{
-
-        $product = Product::findOrFail($request->product_id);
-        if($product->product_type ==='SHOE' && empty($request->stud_type)){
-            return response()->json([
-                'success'=>false,
-                'message'=>'Vui lòng chọn loại đinh'
-            ], 400);
-        }
-
-        $cart = $this->cartService->addItem($product, [
-                'size' => $request->size,
-                'color' => $request->color,
-                'stud_type' => $request->stud_type,
-                'quantity' => $request->quantity,
-            ]);
-
-        $cartCount = $this->cartService->getCartCount();
 
         return response()->json([
-                'success' => true,
-                'message' => 'Đã thêm vào giỏ hàng',
-                'cart_count' => $cartCount,
-                'cart_total' => $this->cartService->getCartTotal(),
-            ]);
+            'success' => true,
+            'message' => 'Đã thêm vào giỏ hàng',
+            'cart_count' => $cartCount,
+            'cart_total' => $cartTotal,
+        ]);
 
-        }catch(Exception $e){
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 500);
-        }
-
+    } catch (\Exception $e) {
+        \Log::error('Cart add error: ' . $e->getMessage(), [
+            'request' => $request->all(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], 500);
     }
+}
 
     public function update(Request $request){
         $validator = Validator::make($request->all(), [
