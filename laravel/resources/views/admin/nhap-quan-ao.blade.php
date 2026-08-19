@@ -112,6 +112,24 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const productNameInput = document.querySelector('input[name="name"]');
+    const slugInput = document.querySelector('input[name="slug"]');
+
+    function createSlug(value) {
+        return value
+            .trim()
+            .toLowerCase()
+            .replace(/đ/g, 'd')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    }
+
+    productNameInput.addEventListener('blur', function() {
+        slugInput.value = createSlug(productNameInput.value);
+    });
+
     let rowCount = 0;
     const tableBody = document.getElementById('variant-body');
     const generateBtn = document.getElementById('generate-variants-btn');
