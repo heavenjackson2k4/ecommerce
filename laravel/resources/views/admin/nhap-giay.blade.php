@@ -95,7 +95,13 @@
         <div class="border-t pt-4 mt-4">
             <div class="flex justify-between items-center mb-3">
                 <h3 class="text-lg font-semibold">Danh sách biến thể</h3>
-                <button type="button" id="add-variant-btn" class="bg-black text-white px-4 py-1 rounded text-sm">+ Thêm dòng</button>
+                <div class="flex items-center gap-4">
+                    <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                        <input type="checkbox" id="use-base-price" class="h-4 w-4 accent-black">
+                        <span>Sử dụng giá cơ bản</span>
+                    </label>
+                    <button type="button" id="add-variant-btn" class="bg-black text-white px-4 py-1 rounded text-sm">+ Thêm dòng</button>
+                </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full border text-sm" id="variant-table">
@@ -165,6 +171,29 @@ document.addEventListener('DOMContentLoaded', function() {
     const sizesInput = document.getElementById('sizes-input');
     const colorsInput = document.getElementById('colors-input');
     const studTypesInput = document.getElementById('stud-types-input');
+    const basePriceInput = document.querySelector('input[name="base_price"]');
+    const useBasePriceCheckbox = document.getElementById('use-base-price');
+
+    function syncVariantPricesWithBasePrice() {
+        const priceInputs = tbody.querySelectorAll('input[name*="[price_override]"]');
+
+        priceInputs.forEach(input => {
+            if (useBasePriceCheckbox.checked) {
+                input.value = basePriceInput.value;
+            }
+
+            input.readOnly = useBasePriceCheckbox.checked;
+            input.classList.toggle('bg-slate-100', useBasePriceCheckbox.checked);
+            input.classList.toggle('text-slate-500', useBasePriceCheckbox.checked);
+        });
+    }
+
+    useBasePriceCheckbox.addEventListener('change', syncVariantPricesWithBasePrice);
+    basePriceInput.addEventListener('input', function() {
+        if (useBasePriceCheckbox.checked) {
+            syncVariantPricesWithBasePrice();
+        }
+    });
 
     // Hàm thêm một dòng mới
     function addRow(size = '', color = '', studType = '', quantity = '', price = '') {
@@ -200,6 +229,7 @@ document.addEventListener('DOMContentLoaded', function() {
             row.remove();
         });
         tbody.appendChild(row);
+        syncVariantPricesWithBasePrice();
         rowCount++;
     }
 
