@@ -18,7 +18,7 @@
 
 
 @php
-    $cartItems = [];
+    $cartItems = collect();
     $cartCount = 0;
     $cartTotal = 0;
     
