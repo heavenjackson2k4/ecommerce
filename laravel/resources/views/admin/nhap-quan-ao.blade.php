@@ -73,7 +73,13 @@
         <div class="border-t border-slate-200 pt-4 mt-4">
             <div class="flex justify-between items-center mb-3">
                 <h3 class="text-lg font-semibold">Danh sách biến thể</h3>
-                <button type="button" id="add-row-btn" class="bg-black text-white px-4 py-1 rounded text-sm hover:bg-slate-800 transition">+ Thêm dòng thủ công</button>
+                <div class="flex items-center gap-4">
+                    <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                        <input type="checkbox" id="use-base-price" class="h-4 w-4 accent-black">
+                        <span>Sử dụng giá cơ bản</span>
+                    </label>
+                    <button type="button" id="add-row-btn" class="bg-black text-white px-4 py-1 rounded text-sm hover:bg-slate-800 transition">+ Thêm dòng thủ công</button>
+                </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full border text-sm">
@@ -112,11 +118,52 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const productNameInput = document.querySelector('input[name="name"]');
+    const slugInput = document.querySelector('input[name="slug"]');
+
+    function createSlug(value) {
+        return value
+            .trim()
+            .toLowerCase()
+            .replace(/đ/g, 'd')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    }
+
+    productNameInput.addEventListener('blur', function() {
+        slugInput.value = createSlug(productNameInput.value);
+    });
+
     let rowCount = 0;
     const tableBody = document.getElementById('variant-body');
     const generateBtn = document.getElementById('generate-variants-btn');
     const clearBtn = document.getElementById('clear-variants-btn');
     const addRowBtn = document.getElementById('add-row-btn');
+    const basePriceInput = document.querySelector('input[name="base_price"]');
+    const useBasePriceCheckbox = document.getElementById('use-base-price');
+
+    function syncVariantPricesWithBasePrice() {
+        const priceInputs = tableBody.querySelectorAll('input[name*="[price_override]"]');
+
+        priceInputs.forEach(input => {
+            if (useBasePriceCheckbox.checked) {
+                input.value = basePriceInput.value;
+            }
+
+            input.readOnly = useBasePriceCheckbox.checked;
+            input.classList.toggle('bg-slate-100', useBasePriceCheckbox.checked);
+            input.classList.toggle('text-slate-500', useBasePriceCheckbox.checked);
+        });
+    }
+
+    useBasePriceCheckbox.addEventListener('change', syncVariantPricesWithBasePrice);
+    basePriceInput.addEventListener('input', function() {
+        if (useBasePriceCheckbox.checked) {
+            syncVariantPricesWithBasePrice();
+        }
+    });
 
     // Thêm một dòng mới vào bảng
     function addRow(size = '', color = '', quantity = '', price = '') {
@@ -149,6 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
             reindexRows();
         });
         tableBody.appendChild(row);
+        syncVariantPricesWithBasePrice();
         rowCount++;
         reindexRows();
     }
