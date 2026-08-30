@@ -50,6 +50,58 @@ class ProductController extends Controller{
             return view('admin.nhap-quan-ao', compact('categories'));
         }
 
+        public function inventoryClothes(Request $request)
+        {
+            return $this->inventory($request, 'CLOTH');
+        }
+
+        public function inventoryShoes(Request $request)
+        {
+            return $this->inventory($request, 'SHOE');
+        }
+
+        private function inventory(Request $request, string $productType)
+        {
+            $isShoe = $productType === 'SHOE';
+            $relations = $isShoe
+                ? ['category', 'shoe.images', 'shoesVariants']
+                : ['category', 'cloth.images', 'clothesVariants'];
+
+            $products = \App\Models\Product::query()
+                ->with($relations)
+                ->where('product_type', $productType)
+                ->when($request->filled('search'), function ($query) use ($request) {
+                    $query->where('name', 'like', '%' . trim((string) $request->string('search')) . '%');
+                })
+                ->latest('id')
+                ->paginate(10)
+                ->withQueryString();
+
+            $products->through(function ($product) use ($isShoe) {
+                $detail = $isShoe ? $product->shoe : $product->cloth;
+                $variants = $isShoe ? $product->shoesVariants : $product->clothesVariants;
+
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'category' => $product->category?->name ?? 'Chưa phân loại',
+                    'image' => $detail?->primary_image,
+                    'variants' => $variants->map(fn ($variant) => [
+                        'size' => $variant->size,
+                        'color' => $variant->color,
+                        'stud_type' => $isShoe ? $variant->stud_type : null,
+                        'quantity' => $variant->quantity,
+                        'price' => (float) ($variant->price_override ?? $product->base_price),
+                    ])->values()->all(),
+                ];
+            });
+
+            return view('admin.inventory.index', [
+                'products' => $products,
+                'type' => $isShoe ? 'shoe' : 'cloth',
+            ]);
+        }
+
 
     // app/Http/Controllers/Admin/ProductController.php
 
