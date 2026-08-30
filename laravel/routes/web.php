@@ -27,6 +27,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     // Nhập giày - gọi controller để truyền categories
     Route::get('/nhap-giay', [ProductController::class, 'createShoe'])->name('admin.nhap-giay');
 
+    Route::get('/ton-kho/quan-ao', [ProductController::class, 'inventoryClothes'])->name('admin.inventory.clothes');
+    Route::get('/ton-kho/giay', [ProductController::class, 'inventoryShoes'])->name('admin.inventory.shoes');
+
     Route::post('/shoes', [ProductController::class, 'storeShoe'])->name('admin.shoes.store');
     Route::post('/clothes', [ProductController::class, 'storeCloth'])->name('admin.clothes.store');
 
