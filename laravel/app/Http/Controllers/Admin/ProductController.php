@@ -63,38 +63,8 @@ class ProductController extends Controller{
         private function inventory(Request $request, string $productType)
         {
             $isShoe = $productType === 'SHOE';
-            $relations = $isShoe
-                ? ['category', 'shoe.images', 'shoesVariants']
-                : ['category', 'cloth.images', 'clothesVariants'];
-
-            $products = \App\Models\Product::query()
-                ->with($relations)
-                ->where('product_type', $productType)
-                ->when($request->filled('search'), function ($query) use ($request) {
-                    $query->where('name', 'like', '%' . trim((string) $request->string('search')) . '%');
-                })
-                ->latest('id')
-                ->paginate(10)
-                ->withQueryString();
-
-            $products->through(function ($product) use ($isShoe) {
-                $detail = $isShoe ? $product->shoe : $product->cloth;
-                $variants = $isShoe ? $product->shoesVariants : $product->clothesVariants;
-
-                return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'category' => $product->category?->name ?? 'Chưa phân loại',
-                    'image' => $detail?->primary_image,
-                    'variants' => $variants->map(fn ($variant) => [
-                        'size' => $variant->size,
-                        'color' => $variant->color,
-                        'stud_type' => $isShoe ? $variant->stud_type : null,
-                        'quantity' => $variant->quantity,
-                        'price' => (float) ($variant->price_override ?? $product->base_price),
-                    ])->values()->all(),
-                ];
-            });
+            $search = trim((string) $request->string('search')) ?: null;
+            $products = $this->productService->getInventoryProducts($productType, $search);
 
             return view('admin.inventory.index', [
                 'products' => $products,

@@ -41,6 +41,43 @@ class ProductService
         ])->findOrFail($id);
     }
 
+    public function getInventoryProducts(string $productType, ?string $search = null, int $perPage = 10)
+    {
+        $isShoe = $productType === 'SHOE';
+        $relations = $isShoe
+            ? ['category', 'shoe.images', 'shoesVariants']
+            : ['category', 'cloth.images', 'clothesVariants'];
+
+        $products = Product::query()
+            ->with($relations)
+            ->where('product_type', $productType)
+            ->when($search, function ($query) use ($search) {
+                $query->where('name', 'like', '%' . $search . '%');
+            })
+            ->latest('id')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return $products->through(function ($product) use ($isShoe) {
+            $detail = $isShoe ? $product->shoe : $product->cloth;
+            $variants = $isShoe ? $product->shoesVariants : $product->clothesVariants;
+
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'category' => $product->category?->name ?? 'Chưa phân loại',
+                'image' => $detail?->primary_image,
+                'variants' => $variants->map(fn ($variant) => [
+                    'size' => $variant->size,
+                    'color' => $variant->color,
+                    'stud_type' => $isShoe ? $variant->stud_type : null,
+                    'quantity' => $variant->quantity,
+                    'price' => (float) ($variant->price_override ?? $product->base_price),
+                ])->values()->all(),
+            ];
+        });
+    }
+
     public function createProduct(array $data): Product
     {
         return DB::transaction(function () use ($data) {
