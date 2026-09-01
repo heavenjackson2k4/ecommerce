@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
 @section('title', $type === 'shoe' ? 'Xem tồn kho giày' : 'Xem tồn kho quần áo')
-@section('page-title', 'Xem tồn kho')
+@section('page-title', 'Dashboard')
 
 @section('content')
 <div
@@ -9,6 +9,10 @@
     x-data="{ selectedProduct: null }"
     @keydown.escape.window="selectedProduct = null"
 >
+    <h2 class="mb-5 text-2xl font-bold text-gray-900">
+        {{ $type === 'shoe' ? 'Danh sách giày' : 'Danh sách quần áo' }}
+    </h2>
+
     <form method="GET" class="mb-6 flex justify-start">
         <label class="relative block w-full max-w-sm">
             <span class="sr-only">Tìm kiếm sản phẩm</span>
