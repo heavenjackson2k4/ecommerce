@@ -8,6 +8,7 @@ use App\Models\ClothesVariant;
 use App\Models\ShoesVariant;
 use App\Jobs\SendOrderNotificationJob;
 use Exception;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -95,6 +96,32 @@ class OrderService
         return Order::with('user', 'items.product')
                     ->orderBy('created_at', 'desc')
                     ->get();
+    }
+
+    public function searchOrdersByPhoneOrDate(string $phone, string $orderDates){
+        $query = Order::query()
+                    ->select([
+                        'id',
+                        'order_code',
+                        'customer_name',
+                        'customer_phone',
+                        'total_amount',
+                        'status',
+                        'created_at',
+                    ]);
+
+        if ($phone !== '') {
+            $query->where('customer_phone', $phone);
+        }
+
+        if ($orderDates !== '') {
+            $date = Carbon::createFromFormat('d-m-Y', $orderDates)->toDateString();
+            $query->whereDate('created_at', $date);
+        }
+
+        return $query->orderBy('created_at', 'desc')
+                     ->paginate(15)
+                     ->withQueryString();
     }
 
     public function getOrderById($orderId){

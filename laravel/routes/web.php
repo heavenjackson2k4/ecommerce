@@ -33,6 +33,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::post('/upload-image', [ImageUploadController::class, 'upload'])->name('admin.upload.image');
 
     Route::get('/orders', [AdminOrderController::class, 'index'])->name('admin.orders.index');
+    Route::get('/orders/search', [AdminOrderController::class, 'search'])->name('admin.orders.search');
     Route::get('/orders/{id}', [AdminOrderController::class, 'show'])->name('admin.orders.show');
     Route::post('/orders/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('admin.orders.update-status');
 
