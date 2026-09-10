@@ -50,6 +50,28 @@ class ProductController extends Controller{
             return view('admin.nhap-quan-ao', compact('categories'));
         }
 
+        public function inventoryClothes(Request $request)
+        {
+            return $this->inventory($request, 'CLOTH');
+        }
+
+        public function inventoryShoes(Request $request)
+        {
+            return $this->inventory($request, 'SHOE');
+        }
+
+        private function inventory(Request $request, string $productType)
+        {
+            $isShoe = $productType === 'SHOE';
+            $search = trim((string) $request->string('search')) ?: null;
+            $products = $this->productService->getInventoryProducts($productType, $search);
+
+            return view('admin.inventory.index', [
+                'products' => $products,
+                'type' => $isShoe ? 'shoe' : 'cloth',
+            ]);
+        }
+
 
     // app/Http/Controllers/Admin/ProductController.php
 

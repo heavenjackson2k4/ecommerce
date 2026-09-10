@@ -2,7 +2,10 @@
     <div class="p-4 border-b border-gray-200">
         <a href="/" class="text-xl font-bold text-gray-800">LOGO</a>
     </div>
-    <nav class="p-4 space-y-2" x-data="{ openSub: false }">
+    <nav class="p-4 space-y-2" x-data="{
+        openProduct: {{ request()->routeIs('admin.nhap-*') ? 'true' : 'false' }},
+        openInventory: {{ request()->routeIs('admin.inventory.*') ? 'true' : 'false' }}
+    }">
         <!-- Dashboard -->
         <a href="{{ route('admin.dashboard') }}" class="flex items-center px-4 py-2 rounded-lg hover:bg-gray-100 {{ request()->routeIs('admin.dashboard') ? 'bg-gray-100' : '' }}">
             <svg class="w-5 h-5 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -13,23 +16,45 @@
 
         <!-- Nhập sản phẩm (có sub) -->
         <div>
-            <button @click="openSub = !openSub" class="flex items-center justify-between w-full px-4 py-2 rounded-lg hover:bg-gray-100">
+            <button type="button" @click="openProduct = !openProduct" class="flex items-center justify-between w-full px-4 py-2 rounded-lg hover:bg-gray-100">
                 <div class="flex items-center">
                     <svg class="w-5 h-5 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
                     <span>Nhập sản phẩm</span>
                 </div>
-                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="openSub ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="openProduct ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                 </svg>
             </button>
-            <div x-show="openSub" class="ml-6 mt-1 space-y-1">
+            <div x-show="openProduct" x-cloak class="ml-6 mt-1 space-y-1">
                 <a href="{{ route('admin.nhap-quan-ao') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-100 {{ request()->routeIs('admin.nhap-quan-ao') ? 'bg-gray-100' : '' }}">
                     Nhập quần áo
                 </a>
                 <a href="{{ route('admin.nhap-giay') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-100 {{ request()->routeIs('admin.nhap-giay') ? 'bg-gray-100' : '' }}">
                     Nhập giày
+                </a>
+            </div>
+        </div>
+
+        <div>
+            <button type="button" @click="openInventory = !openInventory" class="flex items-center justify-between w-full px-4 py-2 rounded-lg hover:bg-gray-100 {{ request()->routeIs('admin.inventory.*') ? 'bg-gray-100' : '' }}">
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14l-1 12H6L5 8Zm-1-4h16v4H4V4Zm6 8h4"/>
+                    </svg>
+                    <span>Xem tồn kho</span>
+                </div>
+                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="openInventory ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </button>
+            <div x-show="openInventory" x-cloak class="ml-6 mt-1 space-y-1">
+                <a href="{{ route('admin.inventory.clothes') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-100 {{ request()->routeIs('admin.inventory.clothes') ? 'bg-gray-100 font-semibold' : '' }}">
+                    Xem quần áo
+                </a>
+                <a href="{{ route('admin.inventory.shoes') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-100 {{ request()->routeIs('admin.inventory.shoes') ? 'bg-gray-100 font-semibold' : '' }}">
+                    Xem giày
                 </a>
             </div>
         </div>
