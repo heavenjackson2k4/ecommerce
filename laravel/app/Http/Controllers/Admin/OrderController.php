@@ -21,25 +21,6 @@ class OrderController extends Controller
     public function index()
     {
         $orders = $this->orderService->getAllOrders();
-
-        return view('admin.orders.index', compact('orders'));
-    }
-
-    /**
-     * Tìm kiếm đơn hàng theo số điện thoại và ngày đặt
-     */
-    public function search(Request $request)
-    {
-        $validated = $request->validate([
-            'phone' => 'nullable|string|max:20',
-            'orderDates' => 'nullable|date_format:d-m-Y',
-        ]);
-
-        $orders = $this->orderService->searchOrdersByPhoneOrDate(
-            trim((string) ($validated['phone'] ?? '')),
-            (string) ($validated['orderDates'] ?? '')
-        );
-
         return view('admin.orders.index', compact('orders'));
     }
 
