@@ -84,7 +84,7 @@ class AuthController extends Controller
         if ($request->session()->pull('checkout.auth_pending', false)) {
             return redirect()->route('checkout');
         }
-        return redirect()->route('customer.dashboard');
+        return redirect()->route('home');
     }
 
     public function showRegister(){
