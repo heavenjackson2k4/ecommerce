@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Customer\CartController;
 use App\Http\Controllers\Customer\OrderController;
 use App\Http\Controllers\Customer\WishlistController;
+use App\View\Components\Customer\CartMini;
 
 Route::get('/', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
@@ -75,9 +76,8 @@ Route::middleware(['auth', 'role:customer'])->prefix('cart')->group(function (){
     Route::put('/update', [CartController::class, 'update'])->name('api.cart.update');
     Route::delete('/remove', [CartController::class, 'remove'])->name('api.cart.remove');
     Route::get('/count', [CartController::class, 'count'])->name('api.cart.count');
-    // Cart mini - partial view
     Route::get('/mini', function () {
-        return view('customer.partials.cart-mini');
+        return app(CartMini::class)->render();
     })->name('cart.mini');
 }) ;
 

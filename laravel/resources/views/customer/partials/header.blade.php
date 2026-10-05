@@ -32,7 +32,7 @@
                         </svg>
                         <span class="absolute -top-1 -right-1 bg-black text-white text-[10px] leading-none rounded-full h-4 w-4 flex items-center justify-center">0</span>
                     </button>
-                    @include('customer.partials.cart-mini')
+                    <x-customer.cart-mini />
                 </div>
 
                 <!-- Wishlist -->
