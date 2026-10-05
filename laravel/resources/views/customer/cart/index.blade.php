@@ -25,7 +25,7 @@
                     </thead>
                     <tbody id="cart-items">
                         @foreach($cart->items as $item)
-                            <tr class="border-b cart-item" data-item-id="{{ $item->id }}">
+                            <tr class="border-b cart-item" data-item-id="{{ $item->guest_key ?? $item->id }}">
                                 <td class="px-4 py-3">
                                     <div class="flex items-center space-x-3">
                                         <div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const itemId = row.dataset.itemId;
         const quantity = row.querySelector('.quantity-input').value;
 
-        fetch('/api/cart/update', {
+        fetch('{{ route("api.cart.update") }}', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function removeCartItem(itemId, row) {
-        fetch('/cart/remove', {
+        fetch('{{ route("api.cart.remove") }}', {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',

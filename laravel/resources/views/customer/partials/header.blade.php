@@ -184,9 +184,11 @@ function getWishlistCount() {
     .catch(error => console.error('Error fetching wishlist count:', error));
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    getWishlistCount();
-});
+@auth
+    document.addEventListener('DOMContentLoaded', function() {
+        getWishlistCount();
+    });
+@endauth
 
 // ===== CẬP NHẬT CART MINI =====
 function loadCartMini() {
