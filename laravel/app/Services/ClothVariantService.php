@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\DB;
 
 class ClothVariantService
 {
+    private const MAX_INVENTORY_QUANTITY = 1000000;
+    private const MAX_VARIANT_PRICE = 9999999999.99;
+
     public function getVariantsByProduct(int $productId)
     {
         return ClothesVariant::where('product_id', $productId)->get();
@@ -49,6 +52,26 @@ class ClothVariantService
             $variant->update(['quantity' => $quantity]);
         });
         return $variant->fresh();
+    }
+
+    public function updateInventory(int $id, array $data): ClothesVariant
+    {
+        return DB::transaction(function () use ($id, $data) {
+            $variant = ClothesVariant::query()->lockForUpdate()->findOrFail($id);
+            $updates = [];
+
+            if (array_key_exists('quantity', $data)) {
+                $updates['quantity'] = $data['quantity'];
+            }
+
+            if (array_key_exists('price_override', $data)) {
+                $updates['price_override'] = $data['price_override'];
+            }
+
+            $variant->update($updates);
+
+            return $variant->fresh();
+        });
     }
 
     public function bulkUpdate(int $productId, array $adjustments): array

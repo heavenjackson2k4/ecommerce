@@ -74,6 +74,27 @@ class ShoeVariantController extends Controller
         return response()->json(['message' => 'Stock updated', 'data' => $variant]);
     }
 
+    public function updateInventory(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'quantity' => 'sometimes|required|integer|min:0|max:1000000',
+            'price_override' => 'sometimes|nullable|numeric|min:0|max:9999999999.99',
+        ]);
+
+        if ($validated === []) {
+            throw ValidationException::withMessages([
+                'inventory' => 'Vui lòng thay đổi số lượng hoặc giá bán.',
+            ]);
+        }
+
+        $variant = $this->variantService->updateInventory($id, $validated);
+
+        return response()->json([
+            'message' => 'Cập nhật tồn kho thành công.',
+            'data' => $variant,
+        ]);
+    }
+
     public function bulkUpdate(Request $request)
     {
         $validated = $request->validate([

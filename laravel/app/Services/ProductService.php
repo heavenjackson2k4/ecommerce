@@ -68,12 +68,15 @@ class ProductService
                 'category' => $product->category?->name ?? 'Chưa phân loại',
                 'image' => $detail?->primary_image,
                 'variants' => $variants->map(fn ($variant) => [
+                    'id' => $variant->id,
                     'size' => $variant->size,
                     'color' => $variant->color,
                     'stud_type' => $isShoe ? $variant->stud_type : null,
                     'quantity' => $variant->quantity,
+                    'price_override' => $variant->price_override !== null ? (float) $variant->price_override : null,
                     'price' => (float) ($variant->price_override ?? $product->base_price),
                 ])->values()->all(),
+                'base_price' => (float) $product->base_price,
             ];
         });
     }

@@ -7,6 +7,8 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Customer\ProductController as CustomerProductController;
 use App\Http\Controllers\Admin\ImageUploadController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\ShoeVariantController;
+use App\Http\Controllers\Admin\ClothVariantController;
 use App\Http\Controllers\Customer\CartController;
 use App\Http\Controllers\Customer\OrderController;
 use App\Http\Controllers\Customer\WishlistController;
@@ -52,6 +54,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
 
     Route::get('/ton-kho/quan-ao', [ProductController::class, 'inventoryClothes'])->name('admin.inventory.clothes');
     Route::get('/ton-kho/giay', [ProductController::class, 'inventoryShoes'])->name('admin.inventory.shoes');
+    Route::patch('/ton-kho/quan-ao/bien-the/{id}', [ClothVariantController::class, 'updateInventory'])->name('admin.inventory.clothes.update');
+    Route::patch('/ton-kho/giay/bien-the/{id}', [ShoeVariantController::class, 'updateInventory'])->name('admin.inventory.shoes.update');
 
     Route::post('/shoes', [ProductController::class, 'storeShoe'])->name('admin.shoes.store');
     Route::post('/clothes', [ProductController::class, 'storeCloth'])->name('admin.clothes.store');
