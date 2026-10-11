@@ -4,13 +4,16 @@
 
 @section('content')
 <div class="max-w-5xl mx-auto">
-    <div class="flex justify-between items-center mb-6">
+    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 class="text-2xl font-bold">Đơn hàng #{{ $order->order_code }}</h1>
-        <div class="flex items-center space-x-4">
-            <span class="inline-block px-3 py-1 text-sm rounded-full bg-{{ $order->status_color }}-100 text-{{ $order->status_color }}-700">
-                {{ $order->status_label }}
-            </span>
-            <a href="{{ route('admin.orders.index') }}" class="text-gray-600 hover:text-black">← Quay lại</a>
+        <div class="flex items-center gap-3">
+            <x-admin.order-status :order="$order" size="md" />
+            <a href="{{ route('admin.orders.index') }}" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-gray-900 hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m15 18-6-6 6-6" />
+                </svg>
+                Quay lại
+            </a>
         </div>
     </div>
 
@@ -46,16 +49,7 @@
                 <div class="flex justify-between">
                     <dt class="text-gray-600">Trạng thái:</dt>
                     <dd>
-                        <form action="{{ route('admin.orders.update-status', $order->id) }}" method="POST" class="inline">
-                            @csrf
-                            <select name="status" onchange="this.form.submit()" class="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-black focus:border-transparent">
-                                <option value="pending" {{ $order->status == 'pending' ? 'selected' : '' }}>Chờ xác nhận</option>
-                                <option value="processing" {{ $order->status == 'processing' ? 'selected' : '' }}>Đang xử lý</option>
-                                <option value="shipped" {{ $order->status == 'shipped' ? 'selected' : '' }}>Đã giao hàng</option>
-                                <option value="delivered" {{ $order->status == 'delivered' ? 'selected' : '' }}>Đã nhận hàng</option>
-                                <option value="cancelled" {{ $order->status == 'cancelled' ? 'selected' : '' }}>Đã hủy</option>
-                            </select>
-                        </form>
+                        <x-admin.order-status :order="$order" :editable="true" />
                     </dd>
                 </div>
             </dl>
