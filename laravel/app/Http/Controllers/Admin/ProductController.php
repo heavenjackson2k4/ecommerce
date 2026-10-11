@@ -3,16 +3,23 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\CategoryService;
 use App\Services\ProductService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 
 class ProductController extends Controller{
+    private const SHOE_CATEGORY_PARENT_SLUG = 'giay';
+    private const CLOTH_CATEGORY_PARENT_SLUG = 'quan-ao';
+
     protected ProductService $productService;
-    public function __construct(ProductService $productService)
+    protected CategoryService $categoryService;
+
+    public function __construct(ProductService $productService, CategoryService $categoryService)
     {
         $this->productService = $productService;
+        $this->categoryService = $categoryService;
     }
 
 
@@ -39,14 +46,14 @@ class ProductController extends Controller{
     // Hiển thị form nhập giày
         public function createShoe()
         {
-            $categories = \App\Models\Category::where('status', 'active')->get();
+            $categories = $this->categoryService->getActiveChildrenByParentSlug(self::SHOE_CATEGORY_PARENT_SLUG);
             return view('admin.nhap-giay', compact('categories'));
         }
 
         // Hiển thị form nhập quần áo
         public function createCloth()
         {
-            $categories = \App\Models\Category::where('status', 'active')->get();
+            $categories = $this->categoryService->getActiveChildrenByParentSlug(self::CLOTH_CATEGORY_PARENT_SLUG);
             return view('admin.nhap-quan-ao', compact('categories'));
         }
 
@@ -77,6 +84,10 @@ class ProductController extends Controller{
 
 public function storeShoe(Request $request)
 {
+    $categoryIds = $this->categoryService
+        ->getActiveChildrenByParentSlug(self::SHOE_CATEGORY_PARENT_SLUG)
+        ->pluck('id')
+        ->all();
 
     if ($request->has('images') && is_array($request->images)) {
         $images = $request->images;
@@ -89,7 +100,7 @@ public function storeShoe(Request $request)
     }
     // dd($request->input('images'));
     $validated = $request->validate([
-        'category_id' => 'required|exists:categories,id',
+        'category_id' => ['required', 'integer', Rule::in($categoryIds)],
         'name' => 'required|string|max:255',
         'slug' => 'required|string|max:255|unique:products,slug',
         'base_price' => 'required|numeric|min:0',
@@ -122,6 +133,8 @@ public function storeShoe(Request $request)
         'images.*.stud_type' => 'nullable|string|max:20',
         'images.*.is_primary' => 'nullable|boolean',
         'images.*.display_order' => 'nullable|integer|min:0',
+    ], [
+        'category_id.in' => 'Danh mục đã chọn không thuộc nhóm giày.',
     ]);
 
     if (isset($validated['images'])) {
@@ -194,6 +207,10 @@ public function storeShoe(Request $request)
 
 public function storeCloth(Request $request)
 {
+    $categoryIds = $this->categoryService
+        ->getActiveChildrenByParentSlug(self::CLOTH_CATEGORY_PARENT_SLUG)
+        ->pluck('id')
+        ->all();
 
     if ($request->has('images') && is_array($request->images)) {
         $images = $request->images;
@@ -205,7 +222,7 @@ public function storeCloth(Request $request)
         $request->merge(['images' => $images]);
     }
     $validated = $request->validate([
-        'category_id' => 'required|exists:categories,id',
+        'category_id' => ['required', 'integer', Rule::in($categoryIds)],
         'name' => 'required|string|max:255',
         'slug' => 'required|string|max:255|unique:products,slug',
         'base_price' => 'required|numeric|min:0',
@@ -231,6 +248,8 @@ public function storeCloth(Request $request)
         'images.*.is_primary' => 'nullable|boolean',
         'images.*.display_order' => 'nullable|integer|min:0',
 
+    ], [
+        'category_id.in' => 'Danh mục đã chọn không thuộc nhóm quần áo.',
     ]);
 
     // Chuẩn bị dữ liệu
