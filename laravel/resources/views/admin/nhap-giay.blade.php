@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 input.value = basePriceInput.value;
             }
 
-            input.readOnly = useBasePriceCheckbox.checked;
+            input.disabled = useBasePriceCheckbox.checked;
             input.classList.toggle('bg-slate-100', useBasePriceCheckbox.checked);
             input.classList.toggle('text-slate-500', useBasePriceCheckbox.checked);
         });

@@ -11,6 +11,9 @@
         'updateUrl' => $type === 'shoe'
             ? route('admin.inventory.shoes.update', ['id' => '__VARIANT__'])
             : route('admin.inventory.clothes.update', ['id' => '__VARIANT__']),
+        'bulkUpdateUrl' => $type === 'shoe'
+            ? route('admin.inventory.shoes.bulk-update', ['productId' => '__PRODUCT__'])
+            : route('admin.inventory.clothes.bulk-update', ['productId' => '__PRODUCT__']),
     ]))"
     @keydown.escape.window="closeProduct()"
 >
@@ -99,7 +102,7 @@
             role="dialog"
             aria-modal="true"
         >
-            <div class="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-xl" x-show="selectedProduct" x-transition>
+            <div class="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-xl" x-show="selectedProduct" x-transition>
                 <button
                     type="button"
                     @click="closeProduct()"
@@ -129,17 +132,42 @@
                     <h2 class="mt-1 text-2xl font-bold text-gray-900" x-text="selectedProduct?.name"></h2>
                     <h3 class="mb-4 mt-7 text-lg font-semibold text-gray-900">Chi tiết sản phẩm</h3>
 
-                    <div class="mb-4 flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                        <svg class="mt-0.5 h-5 w-5 shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.25 11.25 12 10.5m0 0 .75.75M12 10.5v4.5m9-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                        <p>Bạn có thể chỉnh sửa số lượng tồn kho và giá bán của từng biến thể.</p>
+                    <div class="mb-4 flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex items-start gap-3 text-sm text-gray-600">
+                            <svg class="mt-0.5 h-5 w-5 shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.25 11.25 12 10.5m0 0 .75.75M12 10.5v4.5m9-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                            </svg>
+                            <p>Bạn có thể chỉnh sửa số lượng tồn kho và giá bán của từng biến thể.</p>
+                        </div>
+                        <button
+                            x-show="selectedProduct?.variants?.length && !bulkEditing"
+                            type="button"
+                            @click="startBulkEditing()"
+                            :disabled="saving"
+                            class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4.5 6.75h15m-15 5.25h15m-15 5.25h15M8.25 4.5v4.5m7.5 5.25v4.5" />
+                            </svg>
+                            Cập nhật nhiều biến thể
+                        </button>
                     </div>
+
+                    @include('admin.inventory.partials.bulk-editor')
 
                     <div class="overflow-x-auto rounded-xl border border-gray-200">
                         <table class="w-full text-left">
                             <thead class="border-b border-gray-200 bg-gray-50 text-sm text-gray-700">
                                 <tr>
+                                    <th x-show="bulkEditing" x-cloak class="w-14 px-5 py-3 font-semibold">
+                                        <input
+                                            type="checkbox"
+                                            :checked="allBulkSelected()"
+                                            @change="selectAllBulk($event.target.checked)"
+                                            class="h-4 w-4 rounded border-gray-300 accent-black"
+                                            aria-label="Chọn tất cả biến thể"
+                                        >
+                                    </th>
                                     <th class="px-5 py-3 font-semibold">Kích thước</th>
                                     <th class="px-5 py-3 font-semibold">Màu sắc</th>
                                     @if($type === 'shoe')
@@ -147,26 +175,34 @@
                                     @endif
                                     <th class="px-5 py-3 font-semibold">Tồn kho</th>
                                     <th class="px-5 py-3 font-semibold">Giá bán</th>
-                                    <th class="px-5 py-3 text-center font-semibold">Thao tác</th>
+                                    <th x-show="!bulkEditing" class="px-5 py-3 text-center font-semibold">Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200">
                                 <template x-for="variant in selectedProduct?.variants || []" :key="variant.id">
-                                    <tr :class="editingVariantId === variant.id ? 'bg-gray-50' : ''">
+                                    <tr :class="bulkEditing && bulkItems[variant.id]?.selected ? 'bg-gray-50' : (editingVariantId === variant.id ? 'bg-gray-50' : '')">
+                                        <td x-show="bulkEditing" x-cloak class="px-5 py-3">
+                                            <input
+                                                type="checkbox"
+                                                x-model="bulkItems[variant.id].selected"
+                                                class="h-4 w-4 rounded border-gray-300 accent-black"
+                                                :aria-label="'Chọn biến thể ' + variant.size + ' ' + variant.color"
+                                            >
+                                        </td>
                                         <td class="px-5 py-3" x-text="variant.size"></td>
                                         <td class="px-5 py-3" x-text="variant.color"></td>
                                         @if($type === 'shoe')
                                             <td class="px-5 py-3" x-text="variant.stud_type || '—'"></td>
                                         @endif
                                         <td class="px-5 py-3">
-                                            <template x-if="editingVariantId !== variant.id">
+                                            <template x-if="!bulkEditing && editingVariantId !== variant.id">
                                                 <span
                                                     class="inline-flex min-w-10 justify-center rounded-full px-3 py-1 text-sm font-semibold"
                                                     :class="variant.quantity > 30 ? 'bg-emerald-100 text-emerald-700' : (variant.quantity > 0 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')"
                                                     x-text="variant.quantity"
                                                 ></span>
                                             </template>
-                                            <template x-if="editingVariantId === variant.id">
+                                            <template x-if="!bulkEditing && editingVariantId === variant.id">
                                                 <input
                                                     type="number"
                                                     min="0"
@@ -176,15 +212,36 @@
                                                     aria-label="Số lượng tồn kho"
                                                 >
                                             </template>
-                                        </td>
-                                        <td class="px-5 py-3">
-                                            <template x-if="editingVariantId !== variant.id">
-                                                <div class="whitespace-nowrap">
-                                                    <p class="font-semibold" x-text="formatPrice(variant.price) + ' VNĐ'"></p>
-                                                    <p x-show="variant.price_override === null" class="mt-0.5 text-xs font-normal text-gray-500">Giá cơ bản</p>
+                                            <template x-if="bulkEditing">
+                                                <div class="min-w-40">
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="1"
+                                                        x-model.number="bulkItems[variant.id].quantity"
+                                                        :disabled="!bulkItems[variant.id].selected || saving"
+                                                        class="w-24 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                                        :aria-label="'Số lượng của biến thể ' + variant.size + ' ' + variant.color"
+                                                    >
+                                                    <p x-show="bulkItems[variant.id].selected" class="mt-1 text-xs text-gray-500">
+                                                        <span x-text="variant.quantity"></span>
+                                                        <span class="px-1">→</span>
+                                                        <span class="font-semibold text-gray-900" x-text="bulkPreview(variant)"></span>
+                                                    </p>
                                                 </div>
                                             </template>
-                                            <template x-if="editingVariantId === variant.id">
+                                        </td>
+                                        <td class="px-5 py-3">
+                                            <template x-if="bulkEditing || editingVariantId !== variant.id">
+                                                <div class="whitespace-nowrap">
+                                                    <p class="font-semibold" x-text="formatPrice(variant.price) + ' VNĐ'"></p>
+                                                    <p x-show="bulkEditing && bulkItems[variant.id]?.selected && updatePrice" class="mt-1 text-xs text-gray-500">
+                                                        <span>→</span>
+                                                        <span class="font-semibold text-gray-900" x-text="bulkPricePreview(variant) === null ? '—' : formatPrice(bulkPricePreview(variant)) + ' VNĐ'"></span>
+                                                    </p>
+                                                </div>
+                                            </template>
+                                            <template x-if="!bulkEditing && editingVariantId === variant.id">
                                                 <div class="min-w-44 space-y-2">
                                                     <input
                                                         type="number"
@@ -202,8 +259,8 @@
                                                 </div>
                                             </template>
                                         </td>
-                                        <td class="px-5 py-3 text-center">
-                                            <template x-if="editingVariantId !== variant.id">
+                                        <td x-show="!bulkEditing" class="px-5 py-3 text-center">
+                                            <template x-if="!bulkEditing && editingVariantId !== variant.id">
                                                 <button
                                                     type="button"
                                                     @click="startEditing(variant)"
@@ -217,7 +274,7 @@
                                                     Chỉnh sửa
                                                 </button>
                                             </template>
-                                            <template x-if="editingVariantId === variant.id">
+                                            <template x-if="!bulkEditing && editingVariantId === variant.id">
                                                 <div class="flex items-center justify-center gap-2">
                                                     <button
                                                         type="button"
