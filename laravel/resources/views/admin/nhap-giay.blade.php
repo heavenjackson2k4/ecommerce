@@ -81,8 +81,18 @@
                     <input type="text" id="colors-input" class="w-full border rounded px-3 py-2" placeholder="Đỏ,Đen,Xanh">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Loại đinh (cách nhau dấu phẩy)</label>
-                    <input type="text" id="stud-types-input" class="w-full border rounded px-3 py-2" placeholder="TF,IC,AG">
+                    <label class="block text-sm font-medium mb-1">Loại đinh</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="stud-types-input" list="stud-type-suggestions" maxlength="4" autocomplete="off" class="min-w-0 flex-1 border rounded px-3 py-2" placeholder="TF, FG, AG, IC, SG, NONE">
+                        <button type="button" id="add-stud-type-btn" class="rounded bg-black px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">Thêm</button>
+                    </div>
+                    <datalist id="stud-type-suggestions">
+                        @foreach($studTypes as $studType)
+                            <option value="{{ $studType }}">{{ $studType === 'NONE' ? 'Không đinh' : '' }}</option>
+                        @endforeach
+                    </datalist>
+                    <div id="selected-stud-types" class="mt-2 hidden flex flex-wrap gap-2"></div>
+                    <p id="stud-type-error" class="mt-1 hidden text-xs text-red-500"></p>
                 </div>
             </div>
             <button type="button" id="generate-variants-btn" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
@@ -171,8 +181,130 @@ document.addEventListener('DOMContentLoaded', function() {
     const sizesInput = document.getElementById('sizes-input');
     const colorsInput = document.getElementById('colors-input');
     const studTypesInput = document.getElementById('stud-types-input');
+    const addStudTypeBtn = document.getElementById('add-stud-type-btn');
+    const studTypeSuggestions = document.getElementById('stud-type-suggestions');
+    const selectedStudTypesContainer = document.getElementById('selected-stud-types');
+    const studTypeError = document.getElementById('stud-type-error');
     const basePriceInput = document.querySelector('input[name="base_price"]');
     const useBasePriceCheckbox = document.getElementById('use-base-price');
+    const allowedStudTypes = @js(array_values($studTypes));
+    const selectedStudTypes = [];
+
+    function normalizeStudType(value) {
+        return value.trim().toUpperCase();
+    }
+
+    function renderStudTypeSuggestions() {
+        studTypeSuggestions.innerHTML = '';
+
+        allowedStudTypes.forEach(studType => {
+            const option = document.createElement('option');
+            option.value = studType;
+            studTypeSuggestions.appendChild(option);
+        });
+    }
+
+    function showStudTypeError(message) {
+        studTypeError.textContent = message;
+        studTypeError.classList.remove('hidden');
+        studTypesInput.classList.add('border-red-500');
+    }
+
+    function clearStudTypeError() {
+        studTypeError.textContent = '';
+        studTypeError.classList.add('hidden');
+        studTypesInput.classList.remove('border-red-500');
+    }
+
+    function renderSelectedStudTypes() {
+        selectedStudTypesContainer.innerHTML = '';
+        selectedStudTypesContainer.classList.toggle('hidden', selectedStudTypes.length === 0);
+
+        selectedStudTypes.forEach(studType => {
+            const chip = document.createElement('span');
+            chip.className = 'inline-flex items-center gap-1 rounded-full border border-gray-300 bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700';
+
+            const label = document.createElement('span');
+            label.textContent = studType;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'text-gray-500 transition hover:text-red-500';
+            removeBtn.setAttribute('aria-label', `Bỏ loại đinh ${studType}`);
+            removeBtn.innerHTML = `
+                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+            `;
+            removeBtn.addEventListener('click', function() {
+                const index = selectedStudTypes.indexOf(studType);
+                if (index !== -1) {
+                    selectedStudTypes.splice(index, 1);
+                    renderSelectedStudTypes();
+                }
+            });
+
+            chip.append(label, removeBtn);
+            selectedStudTypesContainer.appendChild(chip);
+        });
+    }
+
+    function addStudTypes(value) {
+        const studTypes = value
+            .split(',')
+            .map(normalizeStudType)
+            .filter(Boolean);
+
+        if (studTypes.length === 0) {
+            showStudTypeError('Vui lòng nhập hoặc chọn loại đinh.');
+            return false;
+        }
+
+        const invalidStudTypes = studTypes.filter(studType => !allowedStudTypes.includes(studType));
+        if (invalidStudTypes.length > 0) {
+            showStudTypeError('Loại đinh chỉ được phép là TF, FG, AG, IC, SG hoặc NONE.');
+            return false;
+        }
+
+        clearStudTypeError();
+        studTypes.forEach(studType => {
+            if (!selectedStudTypes.includes(studType)) {
+                selectedStudTypes.push(studType);
+            }
+        });
+
+        studTypesInput.value = '';
+        renderSelectedStudTypes();
+        return true;
+    }
+
+    addStudTypeBtn.addEventListener('click', function() {
+        addStudTypes(studTypesInput.value);
+        studTypesInput.focus();
+    });
+
+    studTypesInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' || event.key === ',') {
+            event.preventDefault();
+            addStudTypes(studTypesInput.value);
+        }
+    });
+
+    studTypesInput.addEventListener('change', function() {
+        if (studTypesInput.value) {
+            addStudTypes(studTypesInput.value);
+        }
+    });
+
+    studTypesInput.addEventListener('input', clearStudTypeError);
+
+    tbody.addEventListener('input', function(event) {
+        if (event.target.classList.contains('stud-type-input')) {
+            event.target.value = normalizeStudType(event.target.value);
+        }
+    });
+
+    renderStudTypeSuggestions();
 
     function syncVariantPricesWithBasePrice() {
         const priceInputs = tbody.querySelectorAll('input[name*="[price_override]"]');
@@ -195,25 +327,31 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    function escapeHtmlAttribute(value) {
+        const element = document.createElement('div');
+        element.textContent = value ?? '';
+
+        return element.innerHTML
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     // Hàm thêm một dòng mới
     function addRow(size = '', color = '', studType = '', quantity = '', price = '') {
+        const safeSize = escapeHtmlAttribute(size);
+        const safeColor = escapeHtmlAttribute(color);
+        const safeStudType = escapeHtmlAttribute(normalizeStudType(studType));
         const row = document.createElement('tr');
         row.className = 'variant-row';
         row.innerHTML = `
             <td class="border p-1">
-                <input type="text" name="variants[${rowCount}][size]" value="${size}" class="w-full border-none px-1" placeholder="Size">
+                <input type="text" name="variants[${rowCount}][size]" value="${safeSize}" class="w-full border-none px-1" placeholder="Size">
             </td>
             <td class="border p-1">
-                <input type="text" name="variants[${rowCount}][color]" value="${color}" class="w-full border-none px-1" placeholder="Màu">
+                <input type="text" name="variants[${rowCount}][color]" value="${safeColor}" class="w-full border-none px-1" placeholder="Màu">
             </td>
             <td class="border p-1">
-                <select name="variants[${rowCount}][stud_type]" class="w-full border-none px-1">
-                    <option value="TF" ${studType === 'TF' ? 'selected' : ''}>TF</option>
-                    <option value="FG" ${studType === 'FG' ? 'selected' : ''}>FG</option>
-                    <option value="AG" ${studType === 'AG' ? 'selected' : ''}>AG</option>
-                    <option value="IC" ${studType === 'IC' ? 'selected' : ''}>IC</option>
-                    <option value="SG" ${studType === 'SG' ? 'selected' : ''}>SG</option>
-                </select>
+                <input type="text" name="variants[${rowCount}][stud_type]" value="${safeStudType}" list="stud-type-suggestions" maxlength="4" pattern="TF|FG|AG|IC|SG|NONE" title="Chỉ chấp nhận TF, FG, AG, IC, SG hoặc NONE" autocomplete="off" class="stud-type-input w-full border-none px-1" placeholder="Loại đinh">
             </td>
             <td class="border p-1">
                 <input type="number" name="variants[${rowCount}][quantity]" value="${quantity}" class="w-full border-none px-1" placeholder="0" min="0">
@@ -243,12 +381,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Sự kiện tạo biến thể
     generateBtn.addEventListener('click', function() {
-        const sizes = sizesInput.value.split(',').map(s => s.trim()).filter(Boolean);
-        const colors = colorsInput.value.split(',').map(c => c.trim()).filter(Boolean);
-        const studTypes = studTypesInput.value.split(',').map(st => st.trim()).filter(Boolean);
+        if (studTypesInput.value.trim() && !addStudTypes(studTypesInput.value)) {
+            return;
+        }
+
+        const sizes = Array.from(new Set(sizesInput.value.split(',').map(s => s.trim()).filter(Boolean)));
+        const colors = Array.from(new Set(colorsInput.value.split(',').map(c => c.trim()).filter(Boolean)));
+        const studTypes = [...selectedStudTypes];
 
         if (sizes.length === 0 || colors.length === 0 || studTypes.length === 0) {
-            alert('Vui lòng nhập đầy đủ Size, Màu và Loại đinh (cách nhau dấu phẩy).');
+            alert('Vui lòng nhập đầy đủ Size, Màu và chọn ít nhất một loại đinh.');
             return;
         }
 

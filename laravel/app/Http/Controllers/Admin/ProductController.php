@@ -12,6 +12,7 @@ use Illuminate\Validation\Rule;
 class ProductController extends Controller{
     private const SHOE_CATEGORY_PARENT_SLUG = 'giay';
     private const CLOTH_CATEGORY_PARENT_SLUG = 'quan-ao';
+    private const SHOE_STUD_TYPES = ['TF', 'FG', 'AG', 'IC', 'SG', 'NONE'];
 
     protected ProductService $productService;
     protected CategoryService $categoryService;
@@ -47,7 +48,9 @@ class ProductController extends Controller{
         public function createShoe()
         {
             $categories = $this->categoryService->getActiveChildrenByParentSlug(self::SHOE_CATEGORY_PARENT_SLUG);
-            return view('admin.nhap-giay', compact('categories'));
+            $studTypes = self::SHOE_STUD_TYPES;
+
+            return view('admin.nhap-giay', compact('categories', 'studTypes'));
         }
 
         // Hiển thị form nhập quần áo
@@ -89,6 +92,8 @@ public function storeShoe(Request $request)
         ->pluck('id')
         ->all();
 
+    $this->normalizeShoeStudTypes($request);
+
     if ($request->has('images') && is_array($request->images)) {
         $images = $request->images;
         foreach ($images as $key => $image) {
@@ -112,7 +117,7 @@ public function storeShoe(Request $request)
         'variants' => 'nullable|array',
         'variants.*.size' => 'required_with:variants|string|max:20',
         'variants.*.color' => 'required_with:variants|string|max:50',
-        'variants.*.stud_type' => 'required_with:variants|string|max:20',
+        'variants.*.stud_type' => ['required_with:variants', 'string', Rule::in(self::SHOE_STUD_TYPES)],
         'variants.*.quantity' => 'nullable|integer|min:0',
         'variants.*.price_override' => 'nullable|numeric|min:0',
         'variants.*.status' => ['nullable', Rule::in(['active', 'inactive'])],
@@ -122,7 +127,7 @@ public function storeShoe(Request $request)
         'colors' => 'nullable|array',
         'colors.*' => 'string|max:50',
         'stud_types' => 'nullable|array',
-        'stud_types.*' => 'string|max:20',
+        'stud_types.*' => ['string', Rule::in(self::SHOE_STUD_TYPES)],
 
 
         // Trong storeShoe, thêm rules:
@@ -130,11 +135,14 @@ public function storeShoe(Request $request)
         'images.*.image_url' => 'required|string|max:500',
         'images.*.public_id' => 'required|string|max:255',
         'images.*.color' => 'required|string|max:50',
-        'images.*.stud_type' => 'nullable|string|max:20',
+        'images.*.stud_type' => ['nullable', 'string', Rule::in(self::SHOE_STUD_TYPES)],
         'images.*.is_primary' => 'nullable|boolean',
         'images.*.display_order' => 'nullable|integer|min:0',
     ], [
         'category_id.in' => 'Danh mục đã chọn không thuộc nhóm giày.',
+        'variants.*.stud_type.in' => 'Loại đinh chỉ được phép là TF, FG, AG, IC, SG hoặc NONE.',
+        'stud_types.*.in' => 'Loại đinh chỉ được phép là TF, FG, AG, IC, SG hoặc NONE.',
+        'images.*.stud_type.in' => 'Loại đinh của ảnh không hợp lệ.',
     ]);
 
     if (isset($validated['images'])) {
@@ -144,6 +152,12 @@ public function storeShoe(Request $request)
     // Kiểm tra nếu không có dữ liệu biến thể nào
     $hasVariants = !empty($validated['variants']);
     $hasAuto = !empty($validated['sizes']) && !empty($validated['colors']) && !empty($validated['stud_types']);
+
+    if ($hasVariants && $this->hasDuplicateShoeVariants($validated['variants'])) {
+        return redirect()->back()
+            ->withInput()
+            ->withErrors(['variants' => 'Danh sách có biến thể trùng size, màu và loại đinh.']);
+    }
     
     if (!$hasVariants && !$hasAuto) {
         return redirect()->back()
@@ -311,5 +325,57 @@ if (isset($validated['images']) && is_array($validated['images'])) {
             ->withInput()
             ->withErrors(['error' => 'Có lỗi xảy ra: ' . $e->getMessage()]);
     }
+}
+
+private function normalizeShoeStudTypes(Request $request): void
+{
+    $variants = $request->input('variants');
+    if (is_array($variants)) {
+        foreach ($variants as $key => $variant) {
+            if (isset($variant['stud_type']) && is_string($variant['stud_type'])) {
+                $variants[$key]['stud_type'] = strtoupper(trim($variant['stud_type']));
+            }
+        }
+        $request->merge(['variants' => $variants]);
+    }
+
+    $studTypes = $request->input('stud_types');
+    if (is_array($studTypes)) {
+        $normalizedStudTypes = [];
+        foreach ($studTypes as $studType) {
+            $normalizedStudTypes[] = is_string($studType)
+                ? strtoupper(trim($studType))
+                : $studType;
+        }
+
+        if (count(array_filter($normalizedStudTypes, 'is_string')) === count($normalizedStudTypes)) {
+            $normalizedStudTypes = array_values(array_unique($normalizedStudTypes));
+        }
+
+        $request->merge(['stud_types' => $normalizedStudTypes]);
+    }
+
+    $images = $request->input('images');
+    if (is_array($images)) {
+        foreach ($images as $key => $image) {
+            if (isset($image['stud_type']) && is_string($image['stud_type'])) {
+                $images[$key]['stud_type'] = strtoupper(trim($image['stud_type']));
+            }
+        }
+        $request->merge(['images' => $images]);
+    }
+}
+
+private function hasDuplicateShoeVariants(array $variants): bool
+{
+    $variantKeys = collect($variants)->map(function ($variant) {
+        return implode('|', [
+            mb_strtolower(trim($variant['size'])),
+            mb_strtolower(trim($variant['color'])),
+            strtoupper(trim($variant['stud_type'])),
+        ]);
+    });
+
+    return $variantKeys->duplicates()->isNotEmpty();
 }
 }
