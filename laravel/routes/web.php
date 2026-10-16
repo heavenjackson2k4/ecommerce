@@ -3,10 +3,13 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Customer\ProductController as CustomerProductController;
 use App\Http\Controllers\Admin\ImageUploadController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\ShoeVariantController;
+use App\Http\Controllers\Admin\ClothVariantController;
 use App\Http\Controllers\Customer\CartController;
 use App\Http\Controllers\Customer\OrderController;
 use App\Http\Controllers\Customer\WishlistController;
@@ -40,9 +43,7 @@ Route::prefix('cart')->group(function () {
 });
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('admin.dashboard');
-    })->name('admin.dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
 
     // Nhập quần áo - gọi controller để truyền categories
     Route::get('/nhap-quan-ao', [ProductController::class, 'createCloth'])->name('admin.nhap-quan-ao');
@@ -52,6 +53,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
 
     Route::get('/ton-kho/quan-ao', [ProductController::class, 'inventoryClothes'])->name('admin.inventory.clothes');
     Route::get('/ton-kho/giay', [ProductController::class, 'inventoryShoes'])->name('admin.inventory.shoes');
+    Route::patch('/ton-kho/quan-ao/bien-the/{id}', [ClothVariantController::class, 'updateInventory'])->name('admin.inventory.clothes.update');
+    Route::patch('/ton-kho/giay/bien-the/{id}', [ShoeVariantController::class, 'updateInventory'])->name('admin.inventory.shoes.update');
+    Route::patch('/ton-kho/quan-ao/{productId}/bien-the/hang-loat', [ClothVariantController::class, 'bulkUpdateInventory'])->name('admin.inventory.clothes.bulk-update');
+    Route::patch('/ton-kho/giay/{productId}/bien-the/hang-loat', [ShoeVariantController::class, 'bulkUpdateInventory'])->name('admin.inventory.shoes.bulk-update');
 
     Route::post('/shoes', [ProductController::class, 'storeShoe'])->name('admin.shoes.store');
     Route::post('/clothes', [ProductController::class, 'storeCloth'])->name('admin.clothes.store');

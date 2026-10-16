@@ -109,12 +109,14 @@
                         <td class="px-4 py-3 text-sm text-gray-600">{{ $order->created_at->format('d/m/Y H:i') }}</td>
                         <td class="px-4 py-3 font-medium text-gray-900">{{ number_format($order->total_amount, 0, ',', '.') }} ₫</td>
                         <td class="px-4 py-3">
-                            <span class="inline-block px-2 py-1 text-xs rounded-full bg-{{ $order->status_color }}-100 text-{{ $order->status_color }}-700">
-                                {{ $order->status_label }}
-                            </span>
+                            <x-admin.order-status :order="$order" />
                         </td>
                         <td class="px-4 py-3 text-center">
-                            <a href="{{ route('admin.orders.show', $order->id) }}" class="text-sm text-black hover:underline">
+                            <a href="{{ route('admin.orders.show', $order->id) }}" class="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12Z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                </svg>
                                 Xem chi tiết
                             </a>
                         </td>

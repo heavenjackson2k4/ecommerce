@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\ClothVariantService;
+use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ClothVariantController extends Controller
 {
@@ -70,6 +72,68 @@ class ClothVariantController extends Controller
 
         $variant = $this->variantService->updateStock($id, $validated['quantity']);
         return response()->json(['message' => 'Stock updated', 'data' => $variant]);
+    }
+
+    public function updateInventory(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'quantity' => 'sometimes|required|integer|min:0|max:1000000',
+            'price_override' => 'sometimes|nullable|numeric|min:0|max:9999999999.99',
+        ]);
+
+        if ($validated === []) {
+            throw ValidationException::withMessages([
+                'inventory' => 'Vui lòng thay đổi số lượng hoặc giá bán.',
+            ]);
+        }
+
+        $variant = $this->variantService->updateInventory($id, $validated);
+
+        return response()->json([
+            'message' => 'Cập nhật tồn kho thành công.',
+            'data' => $variant,
+        ]);
+    }
+
+    public function bulkUpdateInventory(Request $request, int $productId)
+    {
+        $validated = $request->validate([
+            'mode' => ['required', Rule::in(['increment', 'set'])],
+            'variants' => 'required|array|min:1|max:500',
+            'variants.*.id' => 'required|integer|min:1|distinct',
+            'variants.*.quantity' => 'required|integer|min:0|max:1000000',
+            'price_adjustment' => 'nullable|array',
+            'price_adjustment.mode' => [
+                'required_with:price_adjustment',
+                Rule::in(['set', 'increase_amount', 'decrease_amount', 'increase_percent', 'decrease_percent', 'base']),
+            ],
+            'price_adjustment.value' => [
+                Rule::requiredIf(fn () => is_array($request->input('price_adjustment'))
+                    && $request->input('price_adjustment.mode') !== 'base'),
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:9999999999.99',
+            ],
+        ]);
+
+        try {
+            $variants = $this->variantService->bulkUpdateInventory(
+                $productId,
+                $validated['variants'],
+                $validated['mode'],
+                $validated['price_adjustment'] ?? null
+            );
+        } catch (DomainException $exception) {
+            throw ValidationException::withMessages([
+                'variants' => $exception->getMessage(),
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Cập nhật hàng loạt thành công.',
+            'data' => $variants,
+        ]);
     }
 
     public function bulkUpdate(Request $request)
