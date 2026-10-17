@@ -32,8 +32,12 @@ class Cloth extends Model
     }
 
     public function getPrimaryImageAttribute(){
-        $primary = $this->images()->where('is_primary', true)->first();
-        return $primary ? $primary->image_url : $this->images()->first()?->image_url;
+        $images = $this->relationLoaded('images')
+            ? $this->images
+            : $this->images()->orderBy('display_order')->get();
+        $primary = $images->firstWhere('is_primary', true);
+
+        return ($primary ?? $images->first())?->image_url;
     }
 
     public function getImagesByColor(string $color){
