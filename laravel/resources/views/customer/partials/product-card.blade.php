@@ -154,12 +154,8 @@ document.addEventListener('click', function(e) {
         <a href="{{ route('products.show', $product->slug) }}" class="block">
             <h3 class="text-xs sm:text-sm font-medium text-gray-900 hover:text-black line-clamp-2 min-h-[2.5rem]">{{ $product->name }}</h3>
         </a>
-        <div class="mt-2 flex items-center justify-between flex-wrap gap-1">
+        <div class="mt-2">
             <span class="text-sm sm:text-lg font-bold text-gray-900">{{ number_format($product->base_price, 0, ',', '.') }} ₫</span>
-            <div class="flex items-center space-x-1">
-                <span class="text-yellow-400 text-xs sm:text-sm">★</span>
-                <span class="text-xs sm:text-sm text-gray-500">4.5</span>
-            </div>
         </div>
         <div class="mt-3 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
             @if($firstVariant)
