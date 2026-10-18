@@ -210,6 +210,8 @@ public function storeShoe(Request $request)
         }
 
         return redirect()->route('admin.nhap-giay')->with('success', 'Thêm giày thành công!');
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        throw $e;
     } catch (\Exception $e) {
         // Log lỗi để debug
         \Log::error('Lỗi tạo giày: ' . $e->getMessage());
@@ -319,6 +321,8 @@ if (isset($validated['images']) && is_array($validated['images'])) {
         $product = $this->productService->createProduct($data);
         return redirect()->route('admin.nhap-quan-ao')
             ->with('success', 'Thêm quần áo thành công!');
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        throw $e;
     } catch (\Exception $e) {
         \Log::error('Lỗi tạo quần áo: ' . $e->getMessage());
         return redirect()->back()
