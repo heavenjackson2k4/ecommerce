@@ -68,7 +68,7 @@ class ProductController extends Controller
         }
 
         $products = $query
-            ->with(['shoe', 'cloth', 'shoesVariants', 'clothesVariants'])
+            ->with(['shoe.images', 'cloth.images', 'shoesVariants', 'clothesVariants'])
             ->paginate(12);
         $categories = Category::where('status', 'active')->get();
         $selectedCategory = $request->category;

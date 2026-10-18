@@ -128,20 +128,44 @@ document.addEventListener('click', function(e) {
 
 <div class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden group">
     @php
-        $primaryImage = $product->product_type === 'SHOE' 
-            ? ($product->shoe?->primary_image ?? null)
-            : ($product->cloth?->primary_image ?? null);
+        $productDetail = $product->product_type === 'SHOE' ? $product->shoe : $product->cloth;
+        $primaryImage = $productDetail?->primary_image;
         $imageUrl = $primaryImage ?: asset('images/placeholder.jpg');
+        $colorImages = $productDetail && $productDetail->relationLoaded('images')
+            ? $productDetail->images
+                ->filter(fn ($image) => filled($image->color))
+                ->groupBy('color')
+                ->map(fn ($images) => ($images->firstWhere('is_primary', true) ?? $images->sortBy('display_order')->first())?->image_url)
+                ->filter()
+                ->all()
+            : [];
         
-        // Lấy variant đầu tiên của sản phẩm
-        $firstVariant = $product->product_type === 'SHOE' 
-            ? $product->shoesVariants->first() 
-            : $product->clothesVariants->first();
-        
-        // Lấy size, color, stud_type từ variant
-        $defaultSize = $firstVariant?->size ?? '';
-        $defaultColor = $firstVariant?->color ?? '';
-        $defaultStudType = $firstVariant?->stud_type ?? '';
+        $variants = $product->product_type === 'SHOE'
+            ? $product->shoesVariants
+            : $product->clothesVariants;
+        $availableVariants = $variants
+            ->filter(fn ($variant) => $variant->status === 'active' && $variant->quantity > 0)
+            ->values();
+        $quickAddData = [
+            'id' => $product->id,
+            'name' => $product->name,
+            'type' => $product->product_type === 'SHOE' ? 'shoe' : 'cloth',
+            'image' => $imageUrl,
+            'images_by_color' => $colorImages,
+            'base_price' => (float) $product->base_price,
+            'variants' => $availableVariants->map(fn ($variant) => [
+                'id' => $variant->id,
+                'size' => $variant->size,
+                'color' => $variant->color,
+                'stud_type' => $product->product_type === 'SHOE' ? $variant->stud_type : null,
+                'quantity' => $variant->quantity,
+                'price' => (float) ($variant->price_override ?? $product->base_price),
+            ])->all(),
+        ];
+        $quickAddJson = json_encode(
+            $quickAddData,
+            JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE
+        );
     @endphp
 
     <a href="{{ route('products.show', $product->slug) }}" class="block">
@@ -152,20 +176,18 @@ document.addEventListener('click', function(e) {
     
     <div class="p-3 sm:p-4">
         <a href="{{ route('products.show', $product->slug) }}" class="block">
-            <h3 class="text-xs sm:text-sm font-medium text-gray-900 hover:text-black line-clamp-2 min-h-[2.5rem]">{{ $product->name }}</h3>
+            <h3 class="text-xs sm:text-sm font-semibold text-gray-900 hover:text-black line-clamp-2 min-h-[2.5rem]">{{ $product->name }}</h3>
         </a>
         <div class="mt-2">
-            <span class="text-sm sm:text-lg font-bold text-gray-900">{{ number_format($product->base_price, 0, ',', '.') }} ₫</span>
+            <span class="text-sm sm:text-lg font-bold text-gray-900">{{ number_format($product->base_price, 0, ',', '.') }} đ</span>
         </div>
         <div class="mt-3 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-            @if($firstVariant)
-                <button class="w-full sm:flex-1 bg-black text-white text-xs sm:text-sm px-3 py-1.5 sm:py-2 rounded-lg hover:bg-gray-800 transition add-to-cart-btn" 
-                        data-product-id="{{ $product->id }}"
-                        data-variant-id="{{ $firstVariant->id }}"
-                        data-variant-type="{{ $product->product_type === 'SHOE' ? 'shoe' : 'cloth' }}"
-                        data-size="{{ $defaultSize }}"
-                        data-color="{{ $defaultColor }}"
-                        data-stud-type="{{ $defaultStudType }}">
+            @if($availableVariants->isNotEmpty())
+                <button
+                    type="button"
+                    class="quick-add-trigger w-full sm:flex-1 bg-black text-white text-xs sm:text-sm px-3 py-1.5 sm:py-2 rounded-lg hover:bg-gray-800 transition"
+                    data-quick-add="{{ $quickAddJson }}"
+                >
                     Thêm vào giỏ
                 </button>
             @else
@@ -180,110 +202,3 @@ document.addEventListener('click', function(e) {
         </div>
     </div>
 </div>
-
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Kiểm tra nếu đã attach thì không attach lại
-    if (window._cartListenerAttached) {
-        console.log('Cart listener already attached, skipping');
-        return;
-    }
-    window._cartListenerAttached = true;
-
-    console.log('Attaching cart listeners for', document.querySelectorAll('.add-to-cart-btn').length, 'buttons');
-
-    // Gắn event trực tiếp cho từng button - KHÔNG DÙNG EVENT DELEGATION
-    document.querySelectorAll('.add-to-cart-btn').forEach(function(btn) {
-        // Xóa listener cũ bằng cách clone và replace
-        const newBtn = btn.cloneNode(true);
-        btn.parentNode.replaceChild(newBtn, btn);
-        
-        // Gắn event mới
-        newBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Ngăn click nhiều lần
-            if (this.dataset.processing === 'true') {
-                console.log('Already processing, ignoring');
-                return;
-            }
-            
-            console.log('Add to cart clicked for product:', this.dataset.productId);
-            this.dataset.processing = 'true';
-            
-            const productId = this.dataset.productId;
-            const variantId = this.dataset.variantId;
-            const variantType = this.dataset.variantType;
-            const size = this.dataset.size;
-            const color = this.dataset.color;
-            const studType = this.dataset.studType || null;
-            
-            // Hiển thị loading
-            const originalText = this.textContent;
-            this.textContent = 'Đang thêm...';
-            this.disabled = true;
-            
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
-            
-            fetch('/cart/add', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({
-                    product_id: parseInt(productId),
-                    variant_id: parseInt(variantId),
-                    variant_type: variantType,
-                    size: size,
-                    color: color,
-                    stud_type: studType || null,
-                    quantity: 1,
-                }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                this.dataset.processing = 'false';
-                console.log('Response:', data);
-                
-                if (data.success) {
-                    // Cập nhật số lượng trên header
-                    if (window.updateCartCount) {
-                        window.updateCartCount(data.cart_count);
-                    }
-                    if (window.loadCartMini) {
-                        window.loadCartMini();
-                    }
-                    
-                    // Hiển thị thành công
-                    this.textContent = '✓ Đã thêm';
-                    this.classList.remove('bg-black', 'hover:bg-gray-800');
-                    this.classList.add('bg-green-600', 'hover:bg-green-700');
-                    
-                    setTimeout(() => {
-                        this.textContent = originalText;
-                        this.classList.remove('bg-green-600', 'hover:bg-green-700');
-                        this.classList.add('bg-black', 'hover:bg-gray-800');
-                        this.disabled = false;
-                    }, 2000);
-                } else {
-                    window.showToast(data.message || 'Có lỗi xảy ra. Vui lòng thử lại.', 'error');
-                    this.textContent = originalText;
-                    this.disabled = false;
-                }
-            })
-            .catch(error => {
-                this.dataset.processing = 'false';
-                console.error('Error:', error);
-                window.showToast('Có lỗi xảy ra. Vui lòng thử lại.', 'error');
-                this.textContent = originalText;
-                this.disabled = false;
-            });
-        });
-    });
-});
-</script>
-@endpush

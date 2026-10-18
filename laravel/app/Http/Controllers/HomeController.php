@@ -19,7 +19,7 @@ class HomeController extends Controller
             Product::where('status', 'active'),
             $user
         )
-            ->with(['shoe', 'cloth', 'shoesVariants', 'clothesVariants'])
+            ->with(['shoe.images', 'cloth.images', 'shoesVariants', 'clothesVariants'])
             ->orderBy('created_at', 'desc')
             ->limit(8)
             ->get();
@@ -28,7 +28,7 @@ class HomeController extends Controller
             Product::where('status', 'active'),
             $user
         )
-            ->with(['shoe', 'cloth', 'shoesVariants', 'clothesVariants'])
+            ->with(['shoe.images', 'cloth.images', 'shoesVariants', 'clothesVariants'])
             ->orderBy('created_at', 'desc')
             ->limit(8)
             ->get();

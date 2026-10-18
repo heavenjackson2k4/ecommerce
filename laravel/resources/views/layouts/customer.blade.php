@@ -31,6 +31,7 @@
     @endguest
 
     @include('customer.partials.confirm-modal')
+    @include('customer.partials.quick-add-modal')
 
     <!-- Toast -->
     @include('customer.partials.toast')

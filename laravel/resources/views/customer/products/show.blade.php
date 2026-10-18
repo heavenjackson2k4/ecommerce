@@ -339,9 +339,6 @@
                     product_id: {{ $product->id }},
                     variant_id: variant.id,
                     variant_type: isShoe ? 'shoe' : 'cloth',
-                    size: size,
-                    color: color,
-                    stud_type: studType,
                     quantity: quantity,
                 }),
             })
@@ -371,15 +368,32 @@ document.getElementById('buy-now')?.addEventListener('click', function() {
     const colorBtn = document.querySelector('.color-option.border-black');
     const studBtn = document.querySelector('.stud-option.border-black');
     const quantity = parseInt(document.getElementById('quantity').value) || 1;
+    const isShoe = @json($product->product_type === 'SHOE');
     
     if (!sizeBtn || !colorBtn) {
         window.showToast('Vui lòng chọn size và màu sắc.', 'error');
+        return;
+    }
+
+    if (isShoe && !studBtn) {
+        window.showToast('Vui lòng chọn loại đinh.', 'error');
         return;
     }
     
     const size = sizeBtn.dataset.size;
     const color = colorBtn.dataset.color;
     const studType = studBtn ? studBtn.dataset.stud : null;
+    const variants = @json($product->variants);
+    const variant = variants.find(item =>
+        String(item.size) === size
+        && item.color === color
+        && (!isShoe || item.stud_type === studType)
+    );
+
+    if (!variant) {
+        window.showToast('Biến thể sản phẩm đã chọn không tồn tại.', 'error');
+        return;
+    }
     
     // Thêm vào giỏ hàng trước khi chuyển đến checkout
     const productId = {{ $product->id }};
@@ -392,9 +406,8 @@ document.getElementById('buy-now')?.addEventListener('click', function() {
         },
         body: JSON.stringify({
             product_id: productId,
-            size: size,
-            color: color,
-            stud_type: studType,
+            variant_id: variant.id,
+            variant_type: isShoe ? 'shoe' : 'cloth',
             quantity: quantity,
         }),
     })

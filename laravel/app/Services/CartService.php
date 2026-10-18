@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 
 class CartService{
@@ -269,85 +270,21 @@ class CartService{
 
 public function addItem(Product $product, array $data)
 {
-    // Xác định variant
-    $variant = null;
-    $variantType = null;
-
-    // Ưu tiên sử dụng variant_id và variant_type nếu có
-    if (isset($data['variant_id']) && isset($data['variant_type'])) {
-        if ($data['variant_type'] === 'shoe') {
-            $variant = ShoesVariant::where('product_id', $product->id)->find($data['variant_id']);
-            $variantType = 'shoe';
-        } else {
-            $variant = ClothesVariant::where('product_id', $product->id)->find($data['variant_id']);
-            $variantType = 'cloth';
-        }
-    }
-
-    // Nếu không tìm thấy variant từ ID, thử tìm từ size, color, stud_type
-    if (!$variant) {
-        if ($product->product_type === 'SHOE') {
-            $variant = ShoesVariant::where('product_id', $product->id)
-                ->where('size', $data['size'])
-                ->where('color', $data['color'])
-                ->first();
-            $variantType = 'shoe';
-        } else {
-            $variant = ClothesVariant::where('product_id', $product->id)
-                ->where('size', $data['size'])
-                ->where('color', $data['color'])
-                ->first();
-            $variantType = 'cloth';
-        }
-    }
-
-    if (!$variant) {
-        throw new \Exception('Không tìm thấy biến thể sản phẩm.');
-    }
-
+    [$variant, $variantType] = $this->resolveAvailableVariant($product, $data);
+    $requestedQuantity = (int) $data['quantity'];
     $price = $variant->price_override ?? $product->base_price;
-
-    if (!Auth::check()) {
-        $cart = $this->getOrCreateGuestCart();
-        $cartItem = CartItem::where('cart_id', $cart->id)
-                            ->where('product_id', $product->id)
-                            ->where('variant_type', $variantType)
-                            ->where('variant_id', $variant->id)
-                            ->first();
-
-        if ($cartItem) {
-            $cartItem->quantity += $data['quantity'];
-            $cartItem->save();
-        } else {
-            CartItem::create([
-                'cart_id' => $cart->id,
-                'product_id' => $product->id,
-                'variant_type' => $variantType,
-                'variant_id' => $variant->id,
-                'size' => $data['size'],
-                'color' => $data['color'],
-                'stud_type' => $data['stud_type'] ?? null,
-                'quantity' => $data['quantity'],
-                'price' => $price,
-            ]);
-        }
-
-        $this->updateCartTotal($cart);
-        $this->refreshGuestCartExpiration($cart);
-        return $cart->fresh()->load('items.product');
-    }
-
-    $cart = $this->resolveCart();
-
-    // Kiểm tra xem sản phẩm đã có trong giỏ chưa
+    $cart = Auth::check() ? $this->resolveCart() : $this->getOrCreateGuestCart();
     $cartItem = CartItem::where('cart_id', $cart->id)
         ->where('product_id', $product->id)
         ->where('variant_type', $variantType)
         ->where('variant_id', $variant->id)
         ->first();
 
+    $this->ensureStockAvailable($variant, $requestedQuantity, $cartItem?->quantity ?? 0);
+
     if ($cartItem) {
-        $cartItem->quantity += $data['quantity'];
+        $cartItem->quantity += $requestedQuantity;
+        $cartItem->price = $price;
         $cartItem->save();
     } else {
         CartItem::create([
@@ -355,26 +292,78 @@ public function addItem(Product $product, array $data)
             'product_id' => $product->id,
             'variant_type' => $variantType,
             'variant_id' => $variant->id,
-            'size' => $data['size'],
-            'color' => $data['color'],
-            'stud_type' => $data['stud_type'] ?? null,
-            'quantity' => $data['quantity'],
+            'size' => $variant->size,
+            'color' => $variant->color,
+            'stud_type' => $variantType === 'shoe' ? $variant->stud_type : null,
+            'quantity' => $requestedQuantity,
             'price' => $price,
         ]);
     }
 
-    // Cập nhật total cho cart - SỬA LỖI Ở ĐÂY
-    // Sử dụng DB::raw để tính tổng
-    $total = CartItem::where('cart_id', $cart->id)->sum(\DB::raw('price * quantity'));
-    
-    // Sử dụng update thay vì gán trực tiếp để tránh vấn đề casting
-    Cart::where('id', $cart->id)->update(['total' => $total]);
+    $this->updateCartTotal($cart);
+    if (!Auth::check()) {
+        $this->refreshGuestCartExpiration($cart);
+    }
 
-    // Load lại cart với items
-    $cart->refresh();
-    $cart->load('items');
+    return $cart->fresh()->load('items.product');
+}
 
-    return $cart;
+protected function resolveAvailableVariant(Product $product, array $data): array
+{
+    if ($product->status !== 'active') {
+        throw ValidationException::withMessages([
+            'product_id' => 'Sản phẩm hiện không khả dụng.',
+        ]);
+    }
+
+    $variantType = $product->product_type === 'SHOE' ? 'shoe' : 'cloth';
+    if (($data['variant_type'] ?? null) !== $variantType) {
+        throw ValidationException::withMessages([
+            'variant_type' => 'Loại biến thể không phù hợp với sản phẩm.',
+        ]);
+    }
+
+    $variantClass = $variantType === 'shoe' ? ShoesVariant::class : ClothesVariant::class;
+    $variant = $variantClass::where('product_id', $product->id)
+        ->where('status', 'active')
+        ->find($data['variant_id'] ?? null);
+
+    if (!$variant) {
+        throw ValidationException::withMessages([
+            'variant_id' => 'Biến thể sản phẩm không tồn tại hoặc đã ngừng bán.',
+        ]);
+    }
+
+    return [$variant, $variantType];
+}
+
+protected function ensureStockAvailable($variant, int $requestedQuantity, int $currentQuantity = 0): void
+{
+    if ($variant->quantity < 1) {
+        throw ValidationException::withMessages([
+            'quantity' => 'Sản phẩm tạm hết hàng.',
+        ]);
+    }
+
+    if ($requestedQuantity < 1 || $currentQuantity + $requestedQuantity > $variant->quantity) {
+        throw ValidationException::withMessages([
+            'quantity' => "Sản phẩm chỉ còn {$variant->quantity} sản phẩm trong kho.",
+        ]);
+    }
+}
+
+protected function resolveActiveCartVariant(string $variantType, int $variantId)
+{
+    $variantClass = $variantType === 'shoe' ? ShoesVariant::class : ClothesVariant::class;
+    $variant = $variantClass::where('status', 'active')->find($variantId);
+
+    if (!$variant || $variant->product?->status !== 'active') {
+        throw ValidationException::withMessages([
+            'variant_id' => 'Biến thể sản phẩm không tồn tại hoặc đã ngừng bán.',
+        ]);
+    }
+
+    return $variant;
 }
         public function getCart(){
             return $this->resolveCart();
@@ -384,6 +373,11 @@ public function addItem(Product $product, array $data)
             if(!Auth::check()){
                 $legacyItems = session()->get(self::GUEST_CART_SESSION_KEY, []);
                 if(isset($legacyItems[$itemId])){
+                    $variant = $this->resolveActiveCartVariant(
+                        $legacyItems[$itemId]['variant_type'],
+                        $legacyItems[$itemId]['variant_id']
+                    );
+                    $this->ensureStockAvailable($variant, (int) $quantity);
                     $legacyItems[$itemId]['quantity'] = $quantity;
                     session()->put(self::GUEST_CART_SESSION_KEY, $legacyItems);
                     return $this->getGuestCart();
@@ -398,6 +392,8 @@ public function addItem(Product $product, array $data)
                     throw new Exception('Item not found');
                 }
 
+                $variant = $this->resolveActiveCartVariant($item->variant_type, $item->variant_id);
+                $this->ensureStockAvailable($variant, (int) $quantity);
                 $item->quantity = $quantity;
                 $item->save();
                 $this->updateCartTotal($cart);
@@ -414,6 +410,8 @@ public function addItem(Product $product, array $data)
             if(!$item){
                 throw new Exception('Item not found');
             }
+            $variant = $this->resolveActiveCartVariant($item->variant_type, $item->variant_id);
+            $this->ensureStockAvailable($variant, (int) $quantity);
             if($quantity<=0){
                 $item->delete();
             }
@@ -422,7 +420,7 @@ public function addItem(Product $product, array $data)
                 $item->save();
             }
 
-
+            $this->updateCartTotal($cart);
             return $cart->fresh('items');
         }
 
