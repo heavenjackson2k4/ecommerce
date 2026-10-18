@@ -69,7 +69,8 @@ class ProductService
                 'id' => $product->id,
                 'name' => $product->name,
                 'category' => $product->category?->name ?? 'Chưa phân loại',
-                'image' => $detail?->primary_image,
+                'status' => $product->status,
+                'image' => ($detail?->images->firstWhere('is_primary', true) ?? $detail?->images->first())?->image_url,
                 'variants' => $variants->map(fn ($variant) => [
                     'id' => $variant->id,
                     'size' => $variant->size,
@@ -278,6 +279,24 @@ class ProductService
                 }
             }
         }
+    }
+
+    public function updateInventoryProductStatus(int $id, string $status, string $currentStatus): Product
+    {
+        return DB::transaction(function () use ($id, $status, $currentStatus) {
+            $product = Product::query()
+                ->whereIn('product_type', ['SHOE', 'CLOTH'])
+                ->lockForUpdate()
+                ->findOrFail($id);
+
+            if ($product->status !== $currentStatus) {
+                throw new \DomainException('Trạng thái sản phẩm đã được thay đổi. Vui lòng tải lại trang trước khi cập nhật.');
+            }
+
+            $product->update(['status' => $status]);
+
+            return $product;
+        });
     }
 
     public function updateProduct(int $id, array $data): Product

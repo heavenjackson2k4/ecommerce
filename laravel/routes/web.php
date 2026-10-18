@@ -53,6 +53,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
 
     Route::get('/ton-kho/quan-ao', [ProductController::class, 'inventoryClothes'])->name('admin.inventory.clothes');
     Route::get('/ton-kho/giay', [ProductController::class, 'inventoryShoes'])->name('admin.inventory.shoes');
+    Route::patch('/ton-kho/san-pham/{id}/trang-thai', [ProductController::class, 'updateInventoryProductStatus'])->name('admin.inventory.products.update-status');
     Route::patch('/ton-kho/quan-ao/bien-the/{id}', [ClothVariantController::class, 'updateInventory'])->name('admin.inventory.clothes.update');
     Route::patch('/ton-kho/giay/bien-the/{id}', [ShoeVariantController::class, 'updateInventory'])->name('admin.inventory.shoes.update');
     Route::patch('/ton-kho/quan-ao/{productId}/bien-the/hang-loat', [ClothVariantController::class, 'bulkUpdateInventory'])->name('admin.inventory.clothes.bulk-update');
