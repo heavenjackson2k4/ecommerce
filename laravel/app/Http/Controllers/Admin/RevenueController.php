@@ -40,6 +40,42 @@ class RevenueController extends Controller
         return view('admin.revenue.index', compact('statistics', 'report', 'filters', 'groupOptions', 'maxDate'));
     }
 
+    public function orders(Request $request)
+    {
+        $dateFilters = $this->getFilters($request);
+        $validated = $request->validate([
+            'period_start' => ['required', 'date_format:d/m/Y'],
+            'period_end' => ['required', 'date_format:d/m/Y'],
+            'report_page' => ['nullable', 'integer', 'min:1'],
+        ], [
+            'period_start.required' => 'Vui lòng chọn khoảng doanh thu cần xem.',
+            'period_end.required' => 'Vui lòng chọn khoảng doanh thu cần xem.',
+            'period_start.date_format' => 'Ngày bắt đầu phải hợp lệ và có định dạng dd/mm/yyyy.',
+            'period_end.date_format' => 'Ngày kết thúc phải hợp lệ và có định dạng dd/mm/yyyy.',
+        ]);
+
+        $startDate = Carbon::createFromFormat('!d/m/Y', $validated['period_start']);
+        $endDate = Carbon::createFromFormat('!d/m/Y', $validated['period_end']);
+
+        if ($startDate->greaterThan($endDate)) {
+            throw ValidationException::withMessages(['period_end' => 'Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.']);
+        }
+
+        if ($startDate->lessThan($dateFilters['start_date']) || $endDate->greaterThan($dateFilters['end_date'])) {
+            throw ValidationException::withMessages(['period_start' => 'Khoảng xem chi tiết phải nằm trong bộ lọc doanh thu.']);
+        }
+
+        $report = $this->revenueService->getRevenueOrders($startDate, $endDate);
+        $backUrl = route('admin.revenue.index', [
+            'start_date' => $dateFilters['start_date']->format('d/m/Y'),
+            'end_date' => $dateFilters['end_date']->format('d/m/Y'),
+            'group_by' => $dateFilters['group_by'],
+            'page' => $validated['report_page'] ?? 1,
+        ]);
+
+        return view('admin.revenue.orders', compact('report', 'backUrl'));
+    }
+
     private function getFilters(Request $request): array
     {
         $today = now()->startOfDay();

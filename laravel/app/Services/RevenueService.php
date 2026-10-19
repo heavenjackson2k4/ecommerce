@@ -82,6 +82,8 @@ class RevenueService
                     default => $periodStart->format('d/m/Y'),
                 },
                 'date_range' => $groupBy === 'day' ? null : $rangeStart->format('d/m/Y') . ' – ' . $rangeEnd->format('d/m/Y'),
+                'start_date' => $rangeStart->format('d/m/Y'),
+                'end_date' => $rangeEnd->format('d/m/Y'),
                 'order_count' => (int) $days->sum('order_count'),
                 'revenue' => round($days->sum('revenue'), 2),
             ];
@@ -100,4 +102,33 @@ class RevenueService
         ];
     }
 
+    public function getRevenueOrders(Carbon $startDate, Carbon $endDate): array
+    {
+        $query = Order::query()
+            ->where('status', 'delivered')
+            ->where('created_at', '>=', $startDate)
+            ->where('created_at', '<', $endDate->copy()->addDay());
+
+        $summary = (clone $query)
+            ->selectRaw('COUNT(*) as order_count, COALESCE(SUM(total_amount), 0) as revenue')
+            ->first();
+
+        $orders = $query
+            ->select(['id', 'order_code', 'customer_name', 'created_at', 'total_amount'])
+            ->with([
+                'items:id,order_id,product_id,size,color,stud_type,quantity,price,total',
+                'items.product:id,name',
+            ])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate(self::PER_PAGE)
+            ->withQueryString();
+
+        return [
+            'orders' => $orders,
+            'order_count' => (int) $summary->order_count,
+            'revenue' => (float) $summary->revenue,
+            'date_range' => $startDate->format('d/m/Y') . ' – ' . $endDate->format('d/m/Y'),
+        ];
+    }
 }

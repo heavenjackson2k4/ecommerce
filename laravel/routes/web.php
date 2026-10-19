@@ -46,6 +46,7 @@ Route::prefix('cart')->group(function () {
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/revenue', [RevenueController::class, 'index'])->name('admin.revenue.index');
+    Route::get('/revenue/orders', [RevenueController::class, 'orders'])->name('admin.revenue.orders');
 
     // Nhập quần áo - gọi controller để truyền categories
     Route::get('/nhap-quan-ao', [ProductController::class, 'createCloth'])->name('admin.nhap-quan-ao');

@@ -105,6 +105,7 @@
                         <th scope="col" class="px-6 py-4 text-left font-medium">Thời gian</th>
                         <th scope="col" class="px-6 py-4 text-right font-medium">Số đơn đã nhận hàng</th>
                         <th scope="col" class="px-6 py-4 text-right font-medium">Doanh thu</th>
+                        <th scope="col" class="w-24 px-6 py-4 text-center font-medium">Chi tiết</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
@@ -118,10 +119,25 @@
                             </td>
                             <td class="px-6 py-4 text-right tabular-nums text-gray-700">{{ number_format($period['order_count'], 0, ',', '.') }}</td>
                             <td class="whitespace-nowrap px-6 py-4 text-right font-semibold tabular-nums text-gray-900">{{ number_format($period['revenue'], 0, ',', '.') }} đ</td>
+                            <td class="px-6 py-4 text-center">
+                                <a href="{{ route('admin.revenue.orders', [
+                                    'start_date' => $filters['start_date'],
+                                    'end_date' => $filters['end_date'],
+                                    'group_by' => $filters['group_by'],
+                                    'period_start' => $period['start_date'],
+                                    'period_end' => $period['end_date'],
+                                    'report_page' => $report['periods']->currentPage(),
+                                ]) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition hover:border-gray-900 hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900" aria-label="Xem đơn hàng: {{ $period['label'] }}" title="Xem đơn hàng">
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12s-3.75 6.75-9.75 6.75S2.25 12 2.25 12Z" />
+                                        <circle cx="12" cy="12" r="3" stroke-width="1.5" />
+                                    </svg>
+                                </a>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="3" class="px-6 py-12 text-center text-gray-500">
+                            <td colspan="4" class="px-6 py-12 text-center text-gray-500">
                                 {{ $report['order_count'] ? 'Không có dữ liệu trên trang này.' : 'Chưa có doanh thu trong khoảng thời gian đã chọn.' }}
                             </td>
                         </tr>
@@ -132,6 +148,7 @@
                         <th scope="row" class="px-6 py-4 text-left font-semibold text-gray-900">Tổng trong khoảng lọc</th>
                         <td class="px-6 py-4 text-right font-semibold tabular-nums text-gray-900">{{ number_format($report['order_count'], 0, ',', '.') }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-right font-bold tabular-nums text-gray-900">{{ number_format($report['revenue'], 0, ',', '.') }} đ</td>
+                        <td></td>
                     </tr>
                 </tfoot>
             </table>
