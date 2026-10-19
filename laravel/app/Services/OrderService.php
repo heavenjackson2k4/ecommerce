@@ -7,6 +7,8 @@ use App\Models\OrderItem;
 use App\Models\ClothesVariant;
 use App\Models\ShoesVariant;
 use App\Jobs\SendOrderNotificationJob;
+use App\Events\OrderStatusUpdated;
+use DomainException;
 use Exception;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +17,9 @@ use Illuminate\Support\Str;
 
 class OrderService
 {
+
+    private const PER_PAGE = 15;
+    private const MAX_INVENTORY_QUANTITY = 1000000;
 
     protected CartService $cartService;
     public function __construct(CartService $cartService){
@@ -81,7 +86,8 @@ class OrderService
     public function getOrdersByUser($userId){
         return Order::where('user_id', $userId)
                     ->orderBy('created_at', 'desc')
-                    ->get();
+                    ->orderBy('id', 'desc')
+                    ->paginate(self::PER_PAGE);
     }
 
     public function getOrderDetail($orderId){
@@ -93,9 +99,10 @@ class OrderService
     //admin method
 
     public function getAllOrders(){
-        return Order::with('user', 'items.product')
+        return Order::query()
                     ->orderBy('created_at', 'desc')
-                    ->get();
+                    ->orderBy('id', 'desc')
+                    ->paginate(self::PER_PAGE);
     }
 
     public function searchOrdersByPhoneOrDate(string $phone, string $orderDates){
@@ -120,7 +127,8 @@ class OrderService
         }
 
         return $query->orderBy('created_at', 'desc')
-                     ->paginate(15)
+                     ->orderBy('id', 'desc')
+                     ->paginate(self::PER_PAGE)
                      ->withQueryString();
     }
 
@@ -129,39 +137,107 @@ class OrderService
                 ->findOrFail($orderId);
     }
 
-    public function updateOrderStatus( $orderId, $status){
-        $order = Order::findOrFail($orderId);
-
-        if($status === 'processing' && $order->status ==='pending'){
-            $this->deductStock($order);
-        }
-
-        $order->status =  $status;
-        $order->save();
-
-        return $order;
+    public function getOrderStatuses(array $ids, ?int $customerId = null): array
+    {
+        return Order::query()
+            ->select(['id', 'status'])
+            ->whereIn('id', $ids)
+            ->when($customerId !== null, fn ($query) => $query->where('user_id', $customerId))
+            ->get()
+            ->map(fn (Order $order) => $order->statusData())
+            ->all();
     }
 
-    protected function deductStock(Order $order){
-        foreach($order->items as $item){
-            if($item->variant_type ==='shoe'){
-                $variant =ShoesVariant::find($item->variant_id);
-                if($variant){
-                    $variant->quantity -= $item->quantity;
-                    if($variant->quantity < 0){
-                        throw new Exception("không đủ tồn kho cho sản phẩm: " . $variant->product->name);
-                    }
-                    $variant->save();
+    public function updateOrderStatus(int $orderId, string $status, string $currentStatus): Order
+    {
+        return $this->transitionOrder($orderId, $status, $currentStatus);
+    }
+
+    public function cancelOrderByCustomer(int $orderId, int $customerId): Order
+    {
+        return $this->transitionOrder($orderId, 'cancelled', 'pending', $customerId);
+    }
+
+    private function transitionOrder(int $orderId, string $status, string $currentStatus, ?int $customerId = null): Order
+    {
+        return DB::transaction(function () use ($orderId, $status, $currentStatus, $customerId) {
+            $order = Order::query()
+                ->when($customerId !== null, fn ($query) => $query->where('user_id', $customerId))
+                ->lockForUpdate()
+                ->findOrFail($orderId);
+
+            if ($order->status !== $currentStatus) {
+                throw new DomainException('Trạng thái đơn đã thay đổi. Vui lòng kiểm tra lại trước khi thao tác.');
+            }
+
+            if (!in_array($status, $order->allowedNextStatuses(), true)) {
+                throw new DomainException('Không thể chuyển đơn sang trạng thái đã chọn.');
+            }
+
+            if ($status === 'processing') {
+                $this->adjustOrderStock($order, false);
+            } elseif ($status === 'cancelled' && $order->status === 'processing') {
+                $this->adjustOrderStock($order, true);
+            }
+
+            $order->status = $status;
+            $order->save();
+
+            DB::afterCommit(function () use ($order) {
+                try {
+                    event(new OrderStatusUpdated($order));
+                } catch (\Throwable $exception) {
+                    // Đơn đã lưu thành công; lỗi gửi thông báo không được báo thành lỗi cập nhật đơn.
+                    report($exception);
                 }
-            }else{
-                $variant = ClothesVariant::find($item->variant_id);
-                if($variant){
-                    $variant->quantity -= $item->quantity;
-                    if($variant->quantity < 0){
-                        throw new Exception("Không đủ tồn kho cho sản phẩm: " . $variant->product->name);
-                    }
-                    $variant->save();
+            });
+
+            return $order;
+        }, 3);
+    }
+
+    private function adjustOrderStock(Order $order, bool $restore): void
+    {
+        $items = $order->items()->get();
+
+        if ($items->isEmpty() || $items->contains(fn ($item) => !in_array($item->variant_type, ['shoe', 'cloth'], true) || $item->quantity <= 0)) {
+            throw new DomainException('Chi tiết đơn hàng không hợp lệ. Vui lòng kiểm tra trước khi xử lý.');
+        }
+
+        foreach (['shoe' => ShoesVariant::class, 'cloth' => ClothesVariant::class] as $type => $model) {
+            $groups = $items->where('variant_type', $type)->groupBy('variant_id');
+
+            if ($groups->isEmpty()) {
+                continue;
+            }
+
+            $variants = $model::query()
+                ->whereIn('id', $groups->keys())
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            foreach ($groups as $variantId => $group) {
+                $variant = $variants->get($variantId);
+
+                if (!$variant || $group->contains(fn ($item) => (int) $item->product_id !== (int) $variant->product_id)) {
+                    throw new DomainException('Có biến thể của đơn không còn tồn tại hoặc không khớp sản phẩm.');
                 }
+
+                $quantity = (int) $group->sum('quantity');
+                $newQuantity = $restore ? $variant->quantity + $quantity : $variant->quantity - $quantity;
+
+                if ($newQuantity < 0) {
+                    throw new DomainException('Không đủ tồn kho cho biến thể: ' . $variant->size . ' / ' . $variant->color . '.');
+                }
+
+                if ($newQuantity > self::MAX_INVENTORY_QUANTITY) {
+                    throw new DomainException('Tồn kho sau xử lý vượt giới hạn. Vui lòng kiểm tra lại số lượng của biến thể.');
+                }
+
+                $variant->quantity = $newQuantity;
+                $variant->save();
             }
         }
     }

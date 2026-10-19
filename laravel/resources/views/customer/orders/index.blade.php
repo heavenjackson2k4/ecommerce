@@ -3,8 +3,9 @@
 @section('title', 'Lịch sử đơn hàng')
 
 @section('content')
-<div class="max-w-4xl mx-auto">
+<div class="max-w-4xl mx-auto" data-order-realtime data-order-channel="customer.orders.{{ auth()->id() }}" data-order-status-url="{{ route('customer.orders.statuses') }}">
     <h1 class="text-2xl font-bold text-gray-900 mb-6">Lịch sử đơn hàng</h1>
+    <p data-order-connection class="mb-4 text-sm text-gray-500" aria-live="polite">Đang kết nối cập nhật trạng thái...</p>
 
     @if($orders->count() > 0)
         <div class="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -25,9 +26,7 @@
                             <td class="px-4 py-3 text-sm text-gray-600">{{ $order->created_at->format('d/m/Y H:i') }}</td>
                             <td class="px-4 py-3 font-medium text-gray-900">{{ number_format($order->total_amount, 0, ',', '.') }} ₫</td>
                             <td class="px-4 py-3">
-                                <span class="inline-block px-2 py-1 text-xs rounded-full bg-{{ $order->status_color }}-100 text-{{ $order->status_color }}-700">
-                                    {{ $order->status_label }}
-                                </span>
+                                <x-order-status :order="$order" />
                             </td>
                             <td class="px-4 py-3 text-center">
                                 <a href="{{ route('customer.orders.show', $order->id) }}" class="text-sm text-black hover:underline">
@@ -49,6 +48,9 @@
                 Mua sắm ngay
             </a>
         </div>
+    @endif
+    @if($orders->hasPages())
+        <div class="mt-6">{{ $orders->links() }}</div>
     @endif
 </div>
 @endsection

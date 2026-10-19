@@ -10,12 +10,22 @@
 @endsection
 
 @section('content')
-<div class="max-w-4xl mx-auto">
+<div class="max-w-4xl mx-auto" data-order-realtime data-order-channel="customer.orders.{{ auth()->id() }}" data-order-status-url="{{ route('customer.orders.statuses') }}">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-900">Đơn hàng #{{ $order->order_code }}</h1>
-        <span class="inline-block px-3 py-1 text-sm rounded-full bg-{{ $order->status_color }}-100 text-{{ $order->status_color }}-700">
-            {{ $order->status_label }}
-        </span>
+        <x-order-status :order="$order" size="md" />
+    </div>
+
+    <p data-order-connection class="mb-4 text-sm text-gray-500" aria-live="polite">Đang kết nối cập nhật trạng thái...</p>
+    <div data-order-cancel="{{ $order->id }}" @class(['mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4', 'hidden' => $order->status !== 'pending'])>
+        <p class="text-sm text-gray-600">Bạn có thể hủy đơn trước khi cửa hàng nhận đơn.</p>
+        <form data-order-form data-order-cancel-form data-order-id="{{ $order->id }}" action="{{ route('customer.orders.cancel', $order->id) }}" method="POST">
+            @csrf
+            <button type="submit" class="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">Hủy đơn</button>
+        </form>
+    </div>
+    <div data-order-contact="{{ $order->id }}" @class(['mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600', 'hidden' => $order->status !== 'processing'])>
+        Đơn đã được cửa hàng tiếp nhận. Nếu cần hủy, vui lòng liên hệ cửa hàng và cung cấp mã <strong class="text-gray-900">{{ $order->order_code }}</strong> để được kiểm tra hỗ trợ.
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -37,7 +47,7 @@
                 </div>
                 <div class="flex justify-between">
                     <dt class="text-gray-600">Trạng thái:</dt>
-                    <dd class="font-medium text-gray-900">{{ $order->status_label }}</dd>
+                    <dd><x-order-status :order="$order" /></dd>
                 </div>
             </dl>
         </div>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\CartService;
 use App\Services\ProductService;
 use App\Services\OrderService;
+use DomainException;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -102,5 +103,39 @@ class OrderController extends Controller
         $order = $this->orderService->getOrderDetail($id);
         $itemImages = $this->productService->getItemImages($order->items);
         return view('customer.orders.show', compact('order', 'itemImages'));
+    }
+
+    public function cancel(Request $request, int $id)
+    {
+        try {
+            $order = $this->orderService->cancelOrderByCustomer($id, (int) Auth::id());
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Đã hủy đơn hàng thành công.',
+                    'data' => $order->statusData(),
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Đã hủy đơn hàng thành công.');
+        } catch (DomainException $exception) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $exception->getMessage()], 409);
+            }
+
+            return redirect()->back()->with('error', $exception->getMessage());
+        }
+    }
+
+    public function statuses(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1|max:25',
+            'ids.*' => 'required|integer|min:1|distinct',
+        ]);
+
+        return response()->json([
+            'data' => $this->orderService->getOrderStatuses($validated['ids'], (int) Auth::id()),
+        ])->header('Cache-Control', 'no-store, private');
     }
 }
