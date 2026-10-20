@@ -65,6 +65,8 @@ class OrderController extends Controller
             ], 401);
         }
 
+        abort_unless(Auth::user()->isCustomer(), 403, 'Chỉ khách hàng mới được đặt hàng.');
+
         try{
             $order =  $this->orderService->createOrder($checkoutData);
             $request->session()->forget(['checkout.form', 'checkout.auth_pending']);

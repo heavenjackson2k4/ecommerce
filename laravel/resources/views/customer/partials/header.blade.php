@@ -25,6 +25,7 @@
                 </form>
 
                 <!-- Cart -->
+                @if(auth()->guest() || auth()->user()->isCustomer())
                 <div class="relative">
                     <button id="cart-toggle" class="text-gray-700 hover:text-black relative">
                         <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,6 +50,8 @@
                     <span id="wishlist-count" class="absolute -right-2 -top-2 hidden h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] leading-none text-white">0</span>
                 </a>
 
+                @endif
+
                 <!-- Auth -->
                 @auth
                     <div class="relative">
@@ -67,11 +70,11 @@
                                 <p class="truncate text-sm font-medium text-gray-900">{{ Auth::user()->name }}</p>
                                 <p class="truncate text-xs text-gray-500">{{ Auth::user()->email }}</p>
                             </div>
-                            <a href="{{ route('customer.orders') }}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition hover:bg-gray-50" role="menuitem">
+                            <a href="{{ Auth::user()->isAdmin() ? route('admin.dashboard') : route('customer.orders') }}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition hover:bg-gray-50" role="menuitem">
                                 <svg class="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M7 4h10a2 2 0 012 2v14l-3-2-4 2-4-2-3 2V6a2 2 0 012-2z" />
                                 </svg>
-                                Lịch sử mua hàng
+                                {{ Auth::user()->isAdmin() ? 'Trang quản trị' : 'Lịch sử mua hàng' }}
                             </a>
                             <form action="{{ route('logout') }}" method="POST" class="mt-1 border-t border-gray-100 pt-1">
                                 @csrf
@@ -180,6 +183,8 @@ function updateCartCount(count) {
 }
 
 function getCartCount() {
+    if (!document.getElementById('cart-toggle')) return;
+
     fetch('/cart/count', {
         method: 'GET',
         headers: {
@@ -221,6 +226,8 @@ function updateWishlistCount(count) {
 }
 
 function getWishlistCount() {
+    if (!document.getElementById('wishlist-count')) return;
+
     fetch('{{ route("customer.wishlist.count") }}', {
         method: 'GET',
         headers: {
@@ -244,6 +251,8 @@ function getWishlistCount() {
 
 // ===== CẬP NHẬT CART MINI =====
 function loadCartMini() {
+    if (!document.getElementById('cart-mini')) return;
+
     // Reload lại cart mini bằng AJAX
     fetch('{{ route("cart.mini") }}', {
         method: 'GET',

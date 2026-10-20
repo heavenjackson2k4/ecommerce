@@ -135,6 +135,7 @@
                 @endif
 
                 <!-- Quantity -->
+                @if(auth()->guest() || auth()->user()->isCustomer())
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Số lượng</label>
                     <div class="flex items-center space-x-2 mt-1">
@@ -157,6 +158,7 @@
                     'variant' => 'detail',
                 ])
             </div>
+                @endif
             </div>
         </div>
     </div>
@@ -187,11 +189,11 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Quantity
         const qtyInput = document.getElementById('quantity');
-        document.getElementById('decrease-qty').addEventListener('click', function() {
+        document.getElementById('decrease-qty')?.addEventListener('click', function() {
             let val = parseInt(qtyInput.value) || 1;
             if (val > 1) qtyInput.value = val - 1;
         });
-        document.getElementById('increase-qty').addEventListener('click', function() {
+        document.getElementById('increase-qty')?.addEventListener('click', function() {
             let val = parseInt(qtyInput.value) || 1;
             qtyInput.value = val + 1;
         });

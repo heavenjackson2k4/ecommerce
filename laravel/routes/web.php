@@ -26,13 +26,13 @@ Route::prefix('customer')->group(function () {
     Route::get('/products', [CustomerProductController::class, 'index'])->name('products.index');
     Route::get('/products/{slug}', [CustomerProductController::class, 'show'])->name('products.show');
 
-    Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+    Route::get('/cart', [CartController::class, 'index'])->middleware('shopping')->name('cart.index');
 
-    Route::get('/checkout', [OrderController::class, 'checkout'])->name('checkout');
-    Route::post('/checkout', [OrderController::class, 'placeOrder'])->name('checkout.place');
+    Route::get('/checkout', [OrderController::class, 'checkout'])->middleware('shopping')->name('checkout');
+    Route::post('/checkout', [OrderController::class, 'placeOrder'])->middleware('shopping')->name('checkout.place');
 });
 
-Route::prefix('cart')->group(function () {
+Route::middleware('shopping')->prefix('cart')->group(function () {
     Route::post('/add', [CartController::class, 'add'])->name('api.cart.add');
     Route::put('/update', [CartController::class, 'update'])->name('api.cart.update');
     Route::delete('/remove', [CartController::class, 'remove'])->name('api.cart.remove');

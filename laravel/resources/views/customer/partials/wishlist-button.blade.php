@@ -1,3 +1,4 @@
+@if(auth()->guest() || auth()->user()->isCustomer())
 <form action="{{ route($product->is_wishlisted ? 'customer.wishlist.destroy' : 'customer.wishlist.store', $product) }}"
       method="POST"
       class="{{ $variant === 'detail' ? 'flex' : 'w-full sm:w-auto' }}"
@@ -22,3 +23,4 @@
         </svg>
     </button>
 </form>
+@endif

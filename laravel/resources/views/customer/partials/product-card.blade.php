@@ -181,6 +181,7 @@ document.addEventListener('click', function(e) {
         <div class="mt-2">
             <span class="text-sm sm:text-lg font-bold text-gray-900">{{ number_format($product->base_price, 0, ',', '.') }} đ</span>
         </div>
+        @if(auth()->guest() || auth()->user()->isCustomer())
         <div class="mt-3 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
             @if($availableVariants->isNotEmpty())
                 <button
@@ -200,5 +201,6 @@ document.addEventListener('click', function(e) {
                 'variant' => 'card',
             ])
         </div>
+        @endif
     </div>
 </div>
