@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Services\CartService;
+use App\Services\ProductService;
 use App\Services\OrderService;
 use Exception;
 use Illuminate\Http\Request;
@@ -16,11 +17,13 @@ class OrderController extends Controller
 
     protected CartService $cartService;
     protected OrderService $orderService;
+    protected ProductService $productService;
 
-    public function __construct(OrderService $orderService, CartService $cartService)
+    public function __construct(OrderService $orderService, CartService $cartService, ProductService $productService)
     {
         $this->orderService = $orderService;
         $this->cartService = $cartService;
+        $this->productService = $productService;
     }
 
     public function checkout(){
@@ -97,6 +100,7 @@ class OrderController extends Controller
     public function show($id)
     {
         $order = $this->orderService->getOrderDetail($id);
-        return view('customer.orders.show', compact('order'));
+        $itemImages = $this->productService->getItemImages($order->items);
+        return view('customer.orders.show', compact('order', 'itemImages'));
     }
 }

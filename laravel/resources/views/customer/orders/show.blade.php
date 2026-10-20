@@ -88,9 +88,7 @@
                                 <div class="flex items-center space-x-3">
                                     <div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
                                         @php
-                                            $image = $item->product->product_type === 'SHOE' 
-                                                ? ($item->product->shoe?->primary_image ?? null)
-                                                : ($item->product->cloth?->primary_image ?? null);
+                                            $image = $itemImages[$item->id] ?? null;
                                         @endphp
                                         @if($image)
                                             <img src="{{ $image }}" alt="{{ $item->product->name }}" class="w-full h-full object-cover rounded">

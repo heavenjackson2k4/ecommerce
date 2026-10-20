@@ -366,7 +366,7 @@ protected function resolveActiveCartVariant(string $variantType, int $variantId)
     return $variant;
 }
         public function getCart(){
-            return $this->resolveCart();
+            return $this->resolveCart()->loadMissing(['items.product.shoe.images', 'items.product.cloth.images']);
         }
 
         public function updateQuantity($itemId, $quantity){

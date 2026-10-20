@@ -85,7 +85,7 @@ class OrderService
     }
 
     public function getOrderDetail($orderId){
-        return Order::with('items.product')
+        return Order::with('items.product.shoe.images', 'items.product.cloth.images')
                 ->where('user_id', Auth::id())
                 ->findOrFail($orderId);
     }
@@ -125,7 +125,7 @@ class OrderService
     }
 
     public function getOrderById($orderId){
-        return Order::with('user', 'items.product')
+        return Order::with('user', 'items.product.shoe.images', 'items.product.cloth.images')
                 ->findOrFail($orderId);
     }
 

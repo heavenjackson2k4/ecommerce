@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\ShoesVariant;
 use App\Models\ClothesVariant;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Shoe;
@@ -39,6 +40,27 @@ class ProductService
             'shoesVariants',
             'clothesVariants'
         ])->findOrFail($id);
+    }
+
+    public function getImageUrlByColor(?Product $product, ?string $color): ?string
+    {
+        $detail = $product?->product_type === 'SHOE' ? $product?->shoe : $product?->cloth;
+
+        if (!$detail) {
+            return null;
+        }
+
+        $images = $detail->images->where('color', $color)->sortBy('display_order');
+        $image = $images->firstWhere('is_primary', true) ?? $images->first();
+
+        return $image?->image_url ?? $detail->primary_image;
+    }
+
+    public function getItemImages(Collection $items): array
+    {
+        return $items->mapWithKeys(fn ($item) => [
+            $item->id => $this->getImageUrlByColor($item->product, $item->color),
+        ])->all();
     }
 
     public function getInventoryProducts(string $productType, ?string $search = null, int $perPage = 10)

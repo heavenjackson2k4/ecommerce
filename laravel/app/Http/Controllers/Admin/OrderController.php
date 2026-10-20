@@ -3,16 +3,19 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\ProductService;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
     protected OrderService $orderService;
+    protected ProductService $productService;
 
-    public function __construct(OrderService $orderService)
+    public function __construct(OrderService $orderService, ProductService $productService)
     {
         $this->orderService = $orderService;
+        $this->productService = $productService;
     }
 
     /**
@@ -49,7 +52,8 @@ class OrderController extends Controller
     public function show($id)
     {
         $order = $this->orderService->getOrderById($id);
-        return view('admin.orders.show', compact('order'));
+        $itemImages = $this->productService->getItemImages($order->items);
+        return view('admin.orders.show', compact('order', 'itemImages'));
     }
 
     /**

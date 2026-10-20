@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Customer;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Services\CartService;
+use App\Services\ProductService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
@@ -15,17 +16,20 @@ class CartController extends Controller
 {
     //
     protected CartService $cartService;
+    protected ProductService $productService;
 
-    public function __construct(CartService $cartService){
+    public function __construct(CartService $cartService, ProductService $productService){
         $this->cartService =  $cartService;
+        $this->productService = $productService;
     }
 
     // hien thi trang gio hang
     public function index(){
         $cart = $this->cartService->getCart();
         $cartTotal = $this->cartService->getCartTotal();
+        $itemImages = $this->productService->getItemImages($cart->items);
 
-        return view('customer.cart.index', compact('cart', 'cartTotal'));
+        return view('customer.cart.index', compact('cart', 'cartTotal', 'itemImages'));
     }
 
 
