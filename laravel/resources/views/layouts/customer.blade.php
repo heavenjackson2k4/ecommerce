@@ -31,6 +31,9 @@
     @endguest
 
     @include('customer.partials.confirm-modal')
+    @if(auth()->guest() || auth()->user()->isCustomer())
+    @include('customer.partials.quick-add-modal')
+    @endif
 
     <!-- Toast -->
     @include('customer.partials.toast')

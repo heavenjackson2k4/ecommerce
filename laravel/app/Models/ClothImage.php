@@ -14,7 +14,7 @@ class ClothImage extends Model
         'cloth_id', 'image_url', 'public_id', 'color', 'is_primary', 'display_order'
     ];
 
-    protected $cast = [
+    protected $casts = [
         'is_primary'=>'boolean',
         'display_order'=>'integer'
     ];

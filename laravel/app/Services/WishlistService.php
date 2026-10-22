@@ -30,7 +30,7 @@ class WishlistService
             ->whereHas('product', fn ($query) => $query->where('status', 'active'))
             ->with([
                 'product' => fn ($query) => $this->withWishlistStatus($query, $user)
-                    ->with(['shoe', 'cloth', 'shoesVariants', 'clothesVariants']),
+                    ->with(['shoe.images', 'cloth.images', 'shoesVariants', 'clothesVariants']),
             ])
             ->latest()
             ->paginate(12);

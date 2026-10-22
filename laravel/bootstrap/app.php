@@ -5,6 +5,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\CheckApiRole;
+use App\Http\Middleware\CheckShoppingAccess;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => CheckRole::class,
             'api.role' => CheckApiRole::class,
+            'shopping' => CheckShoppingAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

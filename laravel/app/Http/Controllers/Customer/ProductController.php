@@ -68,7 +68,7 @@ class ProductController extends Controller
         }
 
         $products = $query
-            ->with(['shoe', 'cloth', 'shoesVariants', 'clothesVariants'])
+            ->with(['shoe.images', 'cloth.images', 'shoesVariants', 'clothesVariants'])
             ->paginate(12);
         $categories = Category::where('status', 'active')->get();
         $selectedCategory = $request->category;
@@ -83,7 +83,19 @@ class ProductController extends Controller
             Product::where('slug', $slug)->where('status', 'active'),
             $user
         )
-            ->with(['category', 'shoesVariants', 'clothesVariants'])
+            ->with([
+                'category',
+                'shoe.images' => fn ($query) => $query
+                    ->orderByDesc('is_primary')
+                    ->orderBy('display_order')
+                    ->orderBy('id'),
+                'cloth.images' => fn ($query) => $query
+                    ->orderByDesc('is_primary')
+                    ->orderBy('display_order')
+                    ->orderBy('id'),
+                'shoesVariants',
+                'clothesVariants',
+            ])
             ->firstOrFail();
 
         $relatedProducts = $this->wishlistService->withWishlistStatus(
@@ -92,10 +104,48 @@ class ProductController extends Controller
                 ->where('status', 'active'),
             $user
         )
-            ->with(['shoe', 'cloth', 'shoesVariants', 'clothesVariants'])
+            ->with([
+                'shoe.images' => fn ($query) => $query
+                    ->orderByDesc('is_primary')
+                    ->orderBy('display_order')
+                    ->orderBy('id'),
+                'cloth.images' => fn ($query) => $query
+                    ->orderByDesc('is_primary')
+                    ->orderBy('display_order')
+                    ->orderBy('id'),
+                'shoesVariants',
+                'clothesVariants',
+            ])
             ->limit(4)
             ->get();
 
-        return view('customer.products.show', compact('product', 'relatedProducts'));
+        $images = $product->product_type === 'SHOE'
+            ? ($product->shoe?->images ?? collect())
+            : ($product->cloth?->images ?? collect());
+        $imagesByColor = $images->groupBy('color');
+        $defaultImage = $images->firstWhere('is_primary', true) ?? $images->first();
+        $defaultColor = $defaultImage?->color;
+        $sizes = $product->variants->pluck('size')->unique();
+
+        if ($product->product_type === 'SHOE') {
+            $sizes = $sizes->sortBy(fn ($size) => (float) $size)->values();
+        } else {
+            $sizeOrder = array_flip(['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']);
+            $sizes = $sizes
+                ->sortBy(fn ($size) => [
+                    $sizeOrder[strtoupper($size)] ?? count($sizeOrder),
+                    strtoupper($size),
+                ])
+                ->values();
+        }
+
+        return view('customer.products.show', compact(
+            'product',
+            'relatedProducts',
+            'imagesByColor',
+            'defaultImage',
+            'defaultColor',
+            'sizes'
+        ));
     }
 }

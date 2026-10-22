@@ -3,27 +3,33 @@
 namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use App\Services\CartService;
+use App\Services\ProductService;
 use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use App\Models\Product;
+use Illuminate\Validation\ValidationException;
 
 class CartController extends Controller
 {
     //
     protected CartService $cartService;
+    protected ProductService $productService;
 
-    public function __construct(CartService $cartService){
+    public function __construct(CartService $cartService, ProductService $productService){
         $this->cartService =  $cartService;
+        $this->productService = $productService;
     }
 
     // hien thi trang gio hang
     public function index(){
         $cart = $this->cartService->getCart();
         $cartTotal = $this->cartService->getCartTotal();
+        $itemImages = $this->productService->getItemImages($cart->items);
 
-        return view('customer.cart.index', compact('cart', 'cartTotal'));
+        return view('customer.cart.index', compact('cart', 'cartTotal', 'itemImages'));
     }
 
 
@@ -81,64 +87,59 @@ class CartController extends Controller
 
     // }
 
-public function add(Request $request)
-{
-    $validator = Validator::make($request->all(), [
-        'product_id' => 'required|exists:products,id',
-        'variant_id' => 'nullable|integer',
-        'variant_type' => 'nullable|in:shoe,cloth',
-        'size' => 'required|string|max:20',
-        'color' => 'required|string|max:50',
-        'stud_type' => 'nullable|string|max:20',
-        'quantity' => 'required|integer|min:1',
-    ]);
-
-    if ($validator->fails()) {
-        return response()->json([
-            'success' => false,
-            'errors' => $validator->errors()
-        ], 422);
-    }
-
-    try {
-        $product = Product::findOrFail($request->product_id);
-        
-        $cart = $this->cartService->addItem($product, [
-            'variant_id' => $request->variant_id,
-            'variant_type' => $request->variant_type,
-            'size' => $request->size,
-            'color' => $request->color,
-            'stud_type' => $request->stud_type,
-            'quantity' => $request->quantity,
+    public function add(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'product_id' => 'required|integer|exists:products,id',
+            'variant_id' => 'required|integer',
+            'variant_type' => 'required|in:shoe,cloth',
+            'quantity' => 'required|integer|min:1',
         ]);
 
-        // Tính số lượng và tổng tiền từ items
-        $cartCount = 0;
-        $cartTotal = 0;
-        foreach ($cart->items as $item) {
-            $cartCount += $item->quantity;
-            $cartTotal += $item->price * $item->quantity;
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Đã thêm vào giỏ hàng',
-            'cart_count' => $cartCount,
-            'cart_total' => $cartTotal,
-        ]);
+        try {
+            $data = $validator->validated();
+            $product = Product::where('status', 'active')->findOrFail($data['product_id']);
+            $cart = $this->cartService->addItem($product, $data);
+            $cartCount = $cart->items->sum('quantity');
+            $cartTotal = $cart->items->sum(fn ($item) => $item->price * $item->quantity);
 
-    } catch (\Exception $e) {
-        \Log::error('Cart add error: ' . $e->getMessage(), [
-            'request' => $request->all(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        
-        return response()->json([
-            'success' => false,
-            'message' => $e->getMessage()
-        ], 500);
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã thêm vào giỏ hàng',
+                'cart_count' => $cartCount,
+                'cart_total' => $cartTotal,
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first(),
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sản phẩm hiện không khả dụng.',
+            ], 404);
+        } catch (Exception $e) {
+            \Log::error('Cart add error: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể thêm sản phẩm vào giỏ hàng. Vui lòng thử lại.',
+            ], 500);
+        }
     }
-}
 
     public function update(Request $request){
         $validator = Validator::make($request->all(), [
@@ -150,7 +151,7 @@ public function add(Request $request)
             return response()->json([
                 'success'=>false,
                 'errors'=>$validator->errors(),
-            ]);
+            ],422);
         }
 
         try{
@@ -165,6 +166,12 @@ public function add(Request $request)
             'cart_total'=>$cartTotal
         ]);
 
+        }catch(ValidationException $e){
+            return response()->json([
+                'success'=>false,
+                'message'=>collect($e->errors())->flatten()->first(),
+                'errors'=>$e->errors(),
+            ],422);
         }catch(Exception $e){
             return response()->json([
                 'success'=>false,
