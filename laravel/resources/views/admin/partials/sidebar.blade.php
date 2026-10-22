@@ -66,6 +66,11 @@
             <span>Đơn hàng</span>
         </a>
 
-        <!-- Add other menu items later -->
+        <a href="{{ route('admin.revenue.index') }}" class="flex items-center px-4 py-2 rounded-lg hover:bg-gray-100 {{ request()->routeIs('admin.revenue.*') ? 'bg-gray-100 font-semibold' : '' }}">
+            <svg class="w-5 h-5 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6m18 6h-4a2 2 0 0 0 0 4h4m-4-2h.01"/>
+            </svg>
+            <span>Doanh thu</span>
+        </a>
     </nav>
 </aside>
