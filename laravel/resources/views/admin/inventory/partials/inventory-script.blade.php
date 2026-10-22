@@ -4,6 +4,10 @@
             products: Object.fromEntries(
                 (config.products || []).map(product => [Number(product.id), product])
             ),
+            productStatuses: config.productStatuses,
+            productStatusMenuProductId: null,
+            productStatusMenuTrigger: null,
+            productStatusMenuPosition: { top: 0, left: 0, width: 0 },
             selectedProduct: null,
             editingVariantId: null,
             editForm: {
@@ -19,10 +23,15 @@
             priceMode: 'set',
             priceValue: '',
             saving: false,
+            productStatusSavingId: null,
+            pendingProductStatusChange: null,
             notification: null,
             notificationTimer: null,
 
             openProduct(productId) {
+                if (this.saving || this.productStatusSavingId !== null || this.pendingProductStatusChange) return;
+
+                this.closeProductStatusMenu(false);
                 this.selectedProduct = this.products[Number(productId)] || null;
                 if (!this.selectedProduct) return;
 
@@ -175,6 +184,111 @@
                 this.notificationTimer = setTimeout(() => {
                     this.notification = null;
                 }, 5000);
+            },
+
+            toggleProductStatusMenu(productId, trigger) {
+                if (this.saving || this.productStatusSavingId !== null || this.pendingProductStatusChange) return;
+                if (this.productStatusMenuProductId === Number(productId)) {
+                    this.closeProductStatusMenu();
+                    return;
+                }
+
+                const rect = trigger.getBoundingClientRect();
+                this.productStatusMenuProductId = Number(productId);
+                this.productStatusMenuTrigger = trigger;
+                this.productStatusMenuPosition = { top: rect.bottom + 6, left: rect.left, width: rect.width };
+                this.$nextTick(() => {
+                    if (this.productStatusMenuProductId !== Number(productId)) return;
+
+                    const menu = this.$refs.productStatusMenu;
+                    this.productStatusMenuPosition.top = rect.bottom + menu.offsetHeight + 6 > window.innerHeight - 8
+                        ? Math.max(8, rect.top - menu.offsetHeight - 6)
+                        : rect.bottom + 6;
+                    this.productStatusMenuPosition.left = Math.max(8, Math.min(rect.left, window.innerWidth - rect.width - 8));
+                    menu.querySelector('[data-status="' + this.products[Number(productId)].status + '"]')?.focus({ preventScroll: true });
+                });
+            },
+
+            closeProductStatusMenu(restoreFocus = true) {
+                if (this.productStatusMenuProductId === null) return;
+
+                this.productStatusMenuProductId = null;
+                if (restoreFocus) this.productStatusMenuTrigger?.focus({ preventScroll: true });
+                this.productStatusMenuTrigger = null;
+            },
+
+            focusProductStatusOption(direction) {
+                const options = Array.from(this.$refs.productStatusMenu.querySelectorAll('[data-status]'));
+                const index = options.indexOf(document.activeElement);
+                options[(index + direction + options.length) % options.length]?.focus({ preventScroll: true });
+            },
+
+            chooseProductStatus(status) {
+                const productId = this.productStatusMenuProductId;
+                this.closeProductStatusMenu();
+                if (productId === null) return;
+
+                return this.requestProductStatusChange(productId, status);
+            },
+
+            requestProductStatusChange(productId, status) {
+                const product = this.products[Number(productId)];
+                if (!product || this.saving || this.productStatusSavingId !== null || this.pendingProductStatusChange) return;
+                if (!Object.prototype.hasOwnProperty.call(config.productStatuses, status) || status === product.status) return;
+
+                if (status === 'archived') {
+                    this.pendingProductStatusChange = { productId: Number(productId), status, currentStatus: product.status };
+                    return;
+                }
+
+                return this.saveInventoryProductStatus(Number(productId), status, product.status);
+            },
+
+            cancelProductStatusChange() {
+                this.pendingProductStatusChange = null;
+            },
+
+            confirmProductStatusChange() {
+                const change = this.pendingProductStatusChange;
+                if (!change) return;
+
+                this.pendingProductStatusChange = null;
+                return this.saveInventoryProductStatus(change.productId, change.status, change.currentStatus);
+            },
+
+            async saveInventoryProductStatus(productId, status, currentStatus) {
+                if (this.saving || this.productStatusSavingId !== null) return;
+
+                this.productStatusSavingId = productId;
+                const updateUrl = config.inventoryProductStatusUpdateUrl.replace('__PRODUCT__', productId);
+                try {
+                    const response = await window.axios.patch(updateUrl, {
+                        status,
+                        current_status: currentStatus,
+                    }, {
+                        timeout: 15000,
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        },
+                    });
+
+                    this.products[productId].status = response.data.data.status;
+                    this.showNotification(response.data.message || 'Cập nhật trạng thái sản phẩm thành công.');
+                } catch (error) {
+                    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+                        this.showNotification('Chưa nhận được phản hồi từ máy chủ. Vui lòng tải lại trang để kiểm tra trạng thái sản phẩm trước khi thử lại.', 'error');
+                        return;
+                    }
+
+                    const errors = error.response?.data?.errors;
+                    const message = errors
+                        ? Object.values(errors).flat()[0]
+                        : (error.response?.data?.message || 'Không thể cập nhật trạng thái sản phẩm. Vui lòng thử lại.');
+                    this.showNotification(message, 'error');
+                } finally {
+                    this.productStatusSavingId = null;
+                }
             },
 
             async saveVariant(variant) {

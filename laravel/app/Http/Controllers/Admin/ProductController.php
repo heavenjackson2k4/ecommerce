@@ -13,6 +13,11 @@ class ProductController extends Controller{
     private const SHOE_CATEGORY_PARENT_SLUG = 'giay';
     private const CLOTH_CATEGORY_PARENT_SLUG = 'quan-ao';
     private const SHOE_STUD_TYPES = ['TF', 'FG', 'AG', 'IC', 'SG', 'NONE'];
+    private const PRODUCT_STATUSES = [
+        'draft' => 'draft',
+        'active' => 'active',
+        'archived' => 'archived',
+    ];
 
     protected ProductService $productService;
     protected CategoryService $categoryService;
@@ -79,8 +84,28 @@ class ProductController extends Controller{
             return view('admin.inventory.index', [
                 'products' => $products,
                 'type' => $isShoe ? 'shoe' : 'cloth',
+                'productStatuses' => self::PRODUCT_STATUSES,
             ]);
         }
+
+    public function updateInventoryProductStatus(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(array_keys(self::PRODUCT_STATUSES))],
+            'current_status' => ['required', Rule::in(array_keys(self::PRODUCT_STATUSES))],
+        ]);
+
+        try {
+            $product = $this->productService->updateInventoryProductStatus($id, $validated['status'], $validated['current_status']);
+        } catch (\DomainException $e) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['status' => $e->getMessage()]);
+        }
+
+        return response()->json([
+            'message' => 'Cập nhật trạng thái sản phẩm thành công.',
+            'data' => ['id' => $product->id, 'status' => $product->status],
+        ]);
+    }
 
 
     // app/Http/Controllers/Admin/ProductController.php
@@ -210,6 +235,8 @@ public function storeShoe(Request $request)
         }
 
         return redirect()->route('admin.nhap-giay')->with('success', 'Thêm giày thành công!');
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        throw $e;
     } catch (\Exception $e) {
         // Log lỗi để debug
         \Log::error('Lỗi tạo giày: ' . $e->getMessage());
@@ -319,6 +346,8 @@ if (isset($validated['images']) && is_array($validated['images'])) {
         $product = $this->productService->createProduct($data);
         return redirect()->route('admin.nhap-quan-ao')
             ->with('success', 'Thêm quần áo thành công!');
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        throw $e;
     } catch (\Exception $e) {
         \Log::error('Lỗi tạo quần áo: ' . $e->getMessage());
         return redirect()->back()

@@ -138,7 +138,7 @@
         <!-- ===== PHẦN QUẢN LÝ ẢNH (THÊM MỚI) ===== -->
         <div class="border-t pt-4 mt-4">
             <h3 class="text-lg font-semibold mb-3">Quản lý ảnh giày</h3>
-            <p class="text-sm text-gray-500 mb-3">Tối đa 3 ảnh cho mỗi màu. Kéo thả để sắp xếp.</p>
+            <p class="text-sm text-gray-500 mb-3">Tối đa 3 ảnh cho mỗi màu. Ảnh đầu tự làm ảnh chính; bấm sao để đổi.</p>
             
             <div id="image-management">
                 <!-- Các khu vực upload màu sẽ được tạo tự động từ danh sách màu trong variants -->
@@ -149,7 +149,7 @@
         </div>
 
         <div class="mt-6">
-            <button type="submit" class="bg-black text-white px-6 py-2 rounded hover:bg-slate-800">Lưu giày</button>
+            <button type="submit" class="bg-black text-white px-6 py-2 rounded hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500">Lưu giày</button>
         </div>
     </form>
 </div>
@@ -409,7 +409,83 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
     const MAX_IMAGES_PER_COLOR = 3;
+    const uploadingColors = new Set();
+    const productForm = document.getElementById('shoe-form');
+    const saveButton = productForm.querySelector('button[type="submit"]');
+    const saveButtonText = saveButton.textContent;
     let globalImageIndex = 0;
+
+    function findColorSection(color) {
+        return Array.from(document.querySelectorAll('#color-image-sections .color-section'))
+            .find(section => section.dataset.color === color);
+    }
+
+    function updateSaveState() {
+        const uploading = uploadingColors.size > 0;
+        saveButton.disabled = uploading;
+        saveButton.textContent = uploading ? 'Đang tải ảnh…' : saveButtonText;
+        productForm.setAttribute('aria-busy', String(uploading));
+    }
+
+    function updateUploadState(section) {
+        const uploading = uploadingColors.has(section.dataset.color);
+        const full = section.querySelectorAll('.image-item').length >= MAX_IMAGES_PER_COLOR;
+        const disabled = uploading || full;
+        const dropZone = section.querySelector('.image-drop-zone');
+        const input = dropZone.querySelector('.file-input');
+
+        input.disabled = disabled;
+        dropZone.setAttribute('aria-disabled', String(disabled));
+        dropZone.setAttribute('aria-busy', String(uploading));
+        dropZone.classList.toggle('cursor-not-allowed', disabled);
+        dropZone.classList.toggle('cursor-pointer', !disabled);
+        dropZone.classList.toggle('bg-gray-50', disabled);
+        dropZone.classList.toggle('hover:border-black', !disabled);
+        dropZone.querySelector('p').textContent = uploading
+            ? 'Đang tải ảnh…'
+            : (full ? 'Đã đủ 3 ảnh. Xóa bớt ảnh để tải thêm.' : 'Kéo thả ảnh vào đây hoặc nhấp để chọn');
+    }
+
+    async function uploadFiles(section, files) {
+        const color = section.dataset.color;
+        if (uploadingColors.has(color)) return;
+
+        const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+        if (!imageFiles.length) return;
+
+        const count = section.querySelectorAll('.image-item').length;
+        if (count + imageFiles.length > MAX_IMAGES_PER_COLOR) {
+            window.showToast(`Mỗi màu chỉ được tối đa ${MAX_IMAGES_PER_COLOR} ảnh!`, 'error');
+            return;
+        }
+
+        uploadingColors.add(color);
+        updateUploadState(section);
+        updateSaveState();
+        try {
+            for (const file of imageFiles) {
+                if (!findColorSection(color)) break;
+
+                const data = await uploadImage(file, color);
+                const currentSection = findColorSection(color);
+                if (data && currentSection) {
+                    addImageToSection(currentSection, data, color);
+                }
+            }
+        } finally {
+            uploadingColors.delete(color);
+            const currentSection = findColorSection(color);
+            if (currentSection) updateUploadState(currentSection);
+            updateSaveState();
+        }
+    }
+
+    productForm.addEventListener('submit', function(event) {
+        if (uploadingColors.size > 0) {
+            event.preventDefault();
+            window.showToast('Vui lòng chờ tải ảnh xong trước khi lưu sản phẩm.', 'error');
+        }
+    });
 
     function getColorsFromVariants() {
         const rows = document.querySelectorAll('#variant-body .variant-row');
@@ -466,9 +542,13 @@ document.addEventListener('DOMContentLoaded', function() {
                          data-color="${color}">
                         <img src="${img.image_url}" class="w-20 h-20 object-cover rounded border" alt="Image">
                         <button type="button" class="remove-image absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">×</button>
-                        ${img.is_primary ? '<span class="absolute bottom-0 left-0 bg-black text-white text-[10px] px-1 rounded">Chính</span>' : ''}
+                        <span data-primary-label class="absolute bottom-0 left-0 bg-black text-white text-[10px] px-1 rounded ${img.is_primary ? '' : 'hidden'}">Chính</span>
                         <div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] p-1 flex items-center justify-between opacity-0 group-hover:opacity-100 transition">
-                            <button type="button" class="set-primary hover:text-yellow-300 ${img.is_primary ? 'text-yellow-300' : ''}">★</button>
+                            <button type="button" class="set-primary hover:text-white" aria-label="Chọn làm ảnh chính">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m12 3 2.78 5.63L21 9.54l-4.5 4.39L17.56 20 12 17.08 6.44 20l1.06-6.07L3 9.54l6.22-.91L12 3Z" />
+                                </svg>
+                            </button>
                             ${img.stud_type ? `<span class="text-[8px]">${img.stud_type}</span>` : ''}
                         </div>
                         <input type="hidden" name="images[${idx}][image_url]" value="${img.image_url}">
@@ -491,7 +571,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                     <p class="text-sm text-gray-500 mt-1">Kéo thả ảnh vào đây hoặc nhấp để chọn</p>
-                    <input type="file" accept="image/*" class="hidden file-input" data-color="${color}">
+                    <input type="file" accept="image/*" class="hidden file-input" data-color="${color}" multiple>
                 </div>
                 <div class="image-list mt-2 flex flex-wrap">
                     ${imagesHtml}
@@ -518,10 +598,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             const result = await response.json();
             if (result.success) return result.data;
-            alert('Upload ảnh thất bại: ' + (result.error || 'Lỗi không xác định'));
+            window.showToast('Upload ảnh thất bại: ' + (result.error || 'Lỗi không xác định'), 'error');
             return null;
         } catch (error) {
-            alert('Có lỗi xảy ra khi upload ảnh');
+            window.showToast('Có lỗi xảy ra khi upload ảnh', 'error');
             console.error(error);
             return null;
         }
@@ -545,8 +625,13 @@ document.addEventListener('DOMContentLoaded', function() {
         item.innerHTML = `
             <img src="${data.image_url}" class="w-20 h-20 object-cover rounded border" alt="Image">
             <button type="button" class="remove-image absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">×</button>
+            <span data-primary-label class="absolute bottom-0 left-0 bg-black text-white text-[10px] px-1 rounded hidden">Chính</span>
             <div class="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] p-1 flex items-center justify-between opacity-0 group-hover:opacity-100 transition">
-                <button type="button" class="set-primary hover:text-yellow-300">★</button>
+                <button type="button" class="set-primary hover:text-white" aria-label="Chọn làm ảnh chính">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m12 3 2.78 5.63L21 9.54l-4.5 4.39L17.56 20 12 17.08 6.44 20l1.06-6.07L3 9.54l6.22-.91L12 3Z" />
+                    </svg>
+                </button>
                 ${studTypeText}
             </div>
             <input type="hidden" name="images[${idx}][image_url]" value="${data.image_url}">
@@ -557,6 +642,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <input type="hidden" name="images[${idx}][display_order]" value="${idx}">
         `;
         list.appendChild(item);
+        syncPrimaryImage(section);
         updateImageCount(section);
         setupImageEventsForItem(item);
     }
@@ -565,6 +651,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const count = section.querySelectorAll('.image-item').length;
         const label = section.querySelector('.flex span.text-xs');
         if (label) label.textContent = `${count}/${MAX_IMAGES_PER_COLOR} ảnh`;
+        updateUploadState(section);
+    }
+
+    function syncPrimaryImage(section, preferredItem = null) {
+        const items = Array.from(section.querySelectorAll('.image-item'));
+        const primaryItem = preferredItem || items.find(item => item.dataset.isPrimary === 'true') || items[0];
+
+        items.forEach(item => {
+            const isPrimary = item === primaryItem;
+            item.dataset.isPrimary = String(isPrimary);
+            item.querySelector('input[name*="[is_primary]"]').value = String(isPrimary);
+            item.querySelector('[data-primary-label]').classList.toggle('hidden', !isPrimary);
+            const button = item.querySelector('.set-primary');
+            button.setAttribute('aria-pressed', String(isPrimary));
+            button.querySelector('svg').setAttribute('fill', isPrimary ? 'currentColor' : 'none');
+        });
     }
 
     function setupImageEventsForItem(item) {
@@ -572,6 +674,7 @@ document.addEventListener('DOMContentLoaded', function() {
         removeBtn.addEventListener('click', function() {
             const section = item.closest('.color-section');
             item.remove();
+            syncPrimaryImage(section);
             updateImageCount(section);
             reorderImages(section);
         });
@@ -580,22 +683,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (primaryBtn) {
             primaryBtn.addEventListener('click', function() {
                 const section = item.closest('.color-section');
-                section.querySelectorAll('.image-item').forEach(i => {
-                    i.dataset.isPrimary = 'false';
-                    const input = i.querySelector('input[name*="[is_primary]"]');
-                    if (input) input.value = 'false';
-                    const btn = i.querySelector('.set-primary');
-                    if (btn) btn.classList.remove('text-yellow-300');
-                });
-                item.dataset.isPrimary = 'true';
-                const input = item.querySelector('input[name*="[is_primary]"]');
-                if (input) input.value = 'true';
-                primaryBtn.classList.add('text-yellow-300');
+                syncPrimaryImage(section, item);
             });
         }
     }
 
     function setupImageEvents(section) {
+        syncPrimaryImage(section);
+        updateImageCount(section);
         section.querySelectorAll('.image-item').forEach(item => setupImageEventsForItem(item));
     }
 
@@ -613,6 +708,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const dropZone = e.target.closest('.image-drop-zone');
             if (dropZone) {
                 e.preventDefault();
+                if (dropZone.getAttribute('aria-disabled') === 'true') return;
                 dropZone.classList.add('border-black', 'bg-gray-50');
             }
         });
@@ -620,6 +716,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const dropZone = e.target.closest('.image-drop-zone');
             if (dropZone) {
                 dropZone.classList.remove('border-black', 'bg-gray-50');
+                updateUploadState(dropZone.closest('.color-section'));
             }
         });
         document.addEventListener('drop', async function(e) {
@@ -627,54 +724,37 @@ document.addEventListener('DOMContentLoaded', function() {
             const dropZone = e.target.closest('.image-drop-zone');
             if (!dropZone) return;
             dropZone.classList.remove('border-black', 'bg-gray-50');
-            
-            const files = e.dataTransfer.files;
-            const color = dropZone.dataset.color;
             const section = dropZone.closest('.color-section');
-            
-            const currentImages = section.querySelectorAll('.image-item').length;
-            if (currentImages + files.length > MAX_IMAGES_PER_COLOR) {
-                alert(`Mỗi màu chỉ được tối đa ${MAX_IMAGES_PER_COLOR} ảnh!`);
-                return;
-            }
-            
-            for (const file of files) {
-                if (!file.type.startsWith('image/')) continue;
-                const data = await uploadImage(file, color);
-                if (data) addImageToSection(section, data, color);
-            }
+            updateUploadState(section);
+            if (dropZone.getAttribute('aria-disabled') === 'true') return;
+
+            await uploadFiles(section, e.dataTransfer.files);
         });
     }
 
     document.addEventListener('click', function(e) {
+        if (e.target.closest('.file-input')) return;
+
         const dropZone = e.target.closest('.upload-area');
         if (dropZone) {
             const input = dropZone.querySelector('.file-input');
-            if (input) input.click();
+            if (input && !input.disabled) input.click();
         }
     });
 
     document.addEventListener('change', async function(e) {
         const input = e.target.closest('.file-input');
         if (!input) return;
-        const color = input.dataset.color;
         const section = input.closest('.color-section');
         const files = input.files;
         
         if (!files.length) return;
-        
-        const currentImages = section.querySelectorAll('.image-item').length;
-        if (currentImages + files.length > MAX_IMAGES_PER_COLOR) {
-            alert(`Mỗi màu chỉ được tối đa ${MAX_IMAGES_PER_COLOR} ảnh!`);
-            input.value = '';
-            return;
-        }
 
-        for (const file of files) {
-            const data = await uploadImage(file, color);
-            if (data) addImageToSection(section, data, color);
+        try {
+            await uploadFiles(section, files);
+        } finally {
+            input.value = '';
         }
-        input.value = '';
     });
 
     setupDragDrop();

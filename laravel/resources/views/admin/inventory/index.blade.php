@@ -8,6 +8,8 @@
     class="mx-auto max-w-7xl"
     x-data="inventoryEditor(@js([
         'products' => $products->items(),
+        'productStatuses' => $productStatuses,
+        'inventoryProductStatusUpdateUrl' => route('admin.inventory.products.update-status', ['id' => '__PRODUCT__']),
         'updateUrl' => $type === 'shoe'
             ? route('admin.inventory.shoes.update', ['id' => '__VARIANT__'])
             : route('admin.inventory.clothes.update', ['id' => '__VARIANT__']),
@@ -15,7 +17,9 @@
             ? route('admin.inventory.shoes.bulk-update', ['productId' => '__PRODUCT__'])
             : route('admin.inventory.clothes.bulk-update', ['productId' => '__PRODUCT__']),
     ]))"
-    @keydown.escape.window="closeProduct()"
+    @keydown.escape.window="pendingProductStatusChange ? cancelProductStatusChange() : (productStatusMenuProductId !== null ? closeProductStatusMenu() : closeProduct())"
+    @scroll.window.capture="closeProductStatusMenu(false)"
+    @resize.window="closeProductStatusMenu(false)"
 >
     <div
         x-cloak
@@ -61,25 +65,76 @@
                     <tr>
                         <th class="w-20 px-6 py-4 font-semibold">STT</th>
                         <th class="px-6 py-4 font-semibold">Tên sản phẩm</th>
-                        <th class="w-1/3 px-6 py-4 font-semibold">Danh mục</th>
+                        <th class="px-6 py-4 font-semibold">Danh mục</th>
+                        <th class="w-44 px-6 py-4 font-semibold">Trạng thái</th>
+                        <th class="w-28 whitespace-nowrap px-6 py-4 text-center font-semibold">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     @forelse($products as $index => $product)
                         <tr
-                            role="button"
-                            tabindex="0"
                             class="cursor-pointer transition hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
                             @click="openProduct({{ $product['id'] }})"
-                            @keydown.enter="openProduct({{ $product['id'] }})"
                         >
                             <td class="px-6 py-4 text-gray-500">{{ $products->firstItem() + $index }}</td>
-                            <td class="px-6 py-4 font-semibold text-gray-900">{{ $product['name'] }}</td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                                        @if($product['image'])
+                                            <img src="{{ $product['image'] }}" alt="" loading="lazy" decoding="async" width="48" height="48" class="h-full w-full object-cover">
+                                        @else
+                                            <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m3 16 5-5 4 4 2-2 7 7M3 5h18v14H3V5Zm13 4h.01" />
+                                            </svg>
+                                        @endif
+                                    </div>
+                                    <span class="font-semibold text-gray-900">{{ $product['name'] }}</span>
+                                </div>
+                            </td>
                             <td class="px-6 py-4 text-gray-700">{{ $product['category'] }}</td>
+                            <td class="px-6 py-4" @click.stop>
+                                <button
+                                    id="product-status-{{ $product['id'] }}"
+                                    type="button"
+                                    @click.stop="toggleProductStatusMenu({{ $product['id'] }}, $event.currentTarget)"
+                                    @keydown.arrow-down.prevent="toggleProductStatusMenu({{ $product['id'] }}, $event.currentTarget)"
+                                    :disabled="saving || productStatusSavingId !== null || pendingProductStatusChange !== null"
+                                    :aria-expanded="productStatusMenuProductId === {{ $product['id'] }}"
+                                    aria-haspopup="listbox"
+                                    aria-controls="inventory-product-status-menu"
+                                    :class="{
+                                        'bg-emerald-50 text-emerald-800': products[{{ $product['id'] }}].status === 'active',
+                                        'bg-gray-50 text-gray-800': products[{{ $product['id'] }}].status === 'draft',
+                                        'bg-amber-50 text-amber-800': products[{{ $product['id'] }}].status === 'archived',
+                                    }"
+                                    class="inline-flex w-full min-w-36 items-center justify-between gap-3 rounded-lg border border-gray-400 px-3 py-2 text-sm font-semibold outline-none transition hover:border-gray-900 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
+                                    aria-label="Trạng thái của {{ $product['name'] }}"
+                                >
+                                    <span x-text="productStatuses[products[{{ $product['id'] }}].status]"></span>
+                                    <svg class="h-4 w-4 shrink-0 transition-transform" :class="productStatusMenuProductId === {{ $product['id'] }} ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
+                                    </svg>
+                                </button>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <button
+                                    type="button"
+                                    @click.stop="openProduct({{ $product['id'] }})"
+                                    :disabled="saving || productStatusSavingId !== null || pendingProductStatusChange !== null"
+                                    class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition hover:border-gray-900 hover:text-black disabled:cursor-not-allowed disabled:opacity-50"
+                                    aria-label="Chỉnh sửa tồn kho của {{ $product['name'] }}"
+                                    title="Chỉnh sửa tồn kho"
+                                >
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m16.862 3.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 15.07a4.5 4.5 0 0 1-1.897 1.13L6 17l.8-2.685a4.5 4.5 0 0 1 1.13-1.897L18.55 1.8M16.862 3.487 19.5 6.125" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.5 13.5V19.125A1.875 1.875 0 0 1 17.625 21H4.875A1.875 1.875 0 0 1 3 19.125V6.375A1.875 1.875 0 0 1 4.875 4.5H10.5" />
+                                    </svg>
+                                </button>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="3" class="px-6 py-12 text-center text-gray-500">
+                            <td colspan="5" class="px-6 py-12 text-center text-gray-500">
                                 {{ request('search') ? 'Không tìm thấy sản phẩm phù hợp.' : 'Chưa có sản phẩm trong kho.' }}
                             </td>
                         </tr>
@@ -92,6 +147,9 @@
     @if($products->hasPages())
         <div class="mt-5">{{ $products->links() }}</div>
     @endif
+
+    @include('admin.inventory.partials.product-status-menu')
+    @include('admin.inventory.partials.product-status-confirmation')
 
     <template x-teleport="body">
         <div

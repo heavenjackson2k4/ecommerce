@@ -9,10 +9,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Shoe;
 use App\Models\Cloth;
+use Illuminate\Validation\ValidationException;
 
 
 class ProductService
 {
+    private const MAX_IMAGES_PER_COLOR = 3;
+
     public function getAllProducts(array $filters = [])
     {
         $query = Product::query()->with(['category', 'shoesVariants', 'clothesVariants']);
@@ -66,7 +69,8 @@ class ProductService
                 'id' => $product->id,
                 'name' => $product->name,
                 'category' => $product->category?->name ?? 'Chưa phân loại',
-                'image' => $detail?->primary_image,
+                'status' => $product->status,
+                'image' => ($detail?->images->firstWhere('is_primary', true) ?? $detail?->images->first())?->image_url,
                 'variants' => $variants->map(fn ($variant) => [
                     'id' => $variant->id,
                     'size' => $variant->size,
@@ -83,6 +87,10 @@ class ProductService
 
     public function createProduct(array $data): Product
     {
+        if (isset($data['images'])) {
+            $data['images'] = $this->prepareImages($data['images']);
+        }
+
         return DB::transaction(function () use ($data) {
             $product = Product::create([
                 'category_id' => $data['category_id'],
@@ -115,31 +123,72 @@ class ProductService
         });
     }
 
+    private function prepareImages(array $images): array
+    {
+        $prepared = [];
+        foreach (collect($images)->groupBy('color') as $color => $colorImages) {
+            if ($colorImages->count() > self::MAX_IMAGES_PER_COLOR) {
+                throw ValidationException::withMessages([
+                    'images' => "Màu {$color} chỉ được tối đa " . self::MAX_IMAGES_PER_COLOR . ' ảnh.',
+                ]);
+            }
+
+            $colorImages = $colorImages->sortBy(fn ($image) => $image['display_order'] ?? 0)->values();
+            $primaryImages = $colorImages->filter(fn ($image) => filter_var($image['is_primary'] ?? false, FILTER_VALIDATE_BOOLEAN));
+            if ($primaryImages->count() > 1) {
+                throw ValidationException::withMessages([
+                    'images' => "Màu {$color} chỉ được chọn một ảnh chính.",
+                ]);
+            }
+
+            $primaryIndex = $primaryImages->keys()->first() ?? 0;
+            foreach ($colorImages as $index => $image) {
+                $image['is_primary'] = $index === $primaryIndex;
+                $image['display_order'] = $index;
+                $prepared[] = $image;
+            }
+        }
+
+        return $prepared;
+    }
+
     private function saveShoeImages(Shoe $shoe, array $images): void
     {
-        foreach($images as $imageData){
-            $shoe->images()->create([
+        if (empty($images)) return;
+
+        $timestamp = now();
+        $rows = array_map(fn ($imageData) => [
+            'shoe_id' => $shoe->id,
             'image_url' => $imageData['image_url'],
             'public_id' => $imageData['public_id'],
             'color' => $imageData['color'],
             'stud_type' => $imageData['stud_type'] ?? null,
-            'is_primary' => filter_var($imageData['is_primary'] ?? false, FILTER_VALIDATE_BOOLEAN),
-            'display_order' => $imageData['display_order'] ?? 0,
-            ]);
-        }
+            'is_primary' => $imageData['is_primary'],
+            'display_order' => $imageData['display_order'],
+            'created_at' => $timestamp,
+            'updated_at' => $timestamp,
+        ], $images);
+
+        $shoe->images()->insert($rows);
     }
 
     private function saveClothImages(Cloth $cloth, array $images): void
     {
-        foreach($images as $imageData){
-            $cloth->images()->create([
+        if (empty($images)) return;
+
+        $timestamp = now();
+        $rows = array_map(fn ($imageData) => [
+            'cloth_id' => $cloth->id,
             'image_url' => $imageData['image_url'],
             'public_id' => $imageData['public_id'],
             'color' => $imageData['color'],
-            'is_primary' => filter_var($imageData['is_primary'] ?? false, FILTER_VALIDATE_BOOLEAN),
-            'display_order' => $imageData['display_order'] ?? 0,
-            ]);
-        }
+            'is_primary' => $imageData['is_primary'],
+            'display_order' => $imageData['display_order'],
+            'created_at' => $timestamp,
+            'updated_at' => $timestamp,
+        ], $images);
+
+        $cloth->images()->insert($rows);
     }
 
     /**
@@ -230,6 +279,24 @@ class ProductService
                 }
             }
         }
+    }
+
+    public function updateInventoryProductStatus(int $id, string $status, string $currentStatus): Product
+    {
+        return DB::transaction(function () use ($id, $status, $currentStatus) {
+            $product = Product::query()
+                ->whereIn('product_type', ['SHOE', 'CLOTH'])
+                ->lockForUpdate()
+                ->findOrFail($id);
+
+            if ($product->status !== $currentStatus) {
+                throw new \DomainException('Trạng thái sản phẩm đã được thay đổi. Vui lòng tải lại trang trước khi cập nhật.');
+            }
+
+            $product->update(['status' => $status]);
+
+            return $product;
+        });
     }
 
     public function updateProduct(int $id, array $data): Product
