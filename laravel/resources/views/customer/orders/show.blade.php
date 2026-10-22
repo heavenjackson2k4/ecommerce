@@ -16,18 +16,6 @@
         <x-order-status :order="$order" size="md" />
     </div>
 
-    <p data-order-connection class="mb-4 text-sm text-gray-500" aria-live="polite">Đang kết nối cập nhật trạng thái...</p>
-    <div data-order-cancel="{{ $order->id }}" @class(['mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4', 'hidden' => $order->status !== 'pending'])>
-        <p class="text-sm text-gray-600">Bạn có thể hủy đơn trước khi cửa hàng nhận đơn.</p>
-        <form data-order-form data-order-cancel-form data-order-id="{{ $order->id }}" action="{{ route('customer.orders.cancel', $order->id) }}" method="POST">
-            @csrf
-            <button type="submit" class="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">Hủy đơn</button>
-        </form>
-    </div>
-    <div data-order-contact="{{ $order->id }}" @class(['mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600', 'hidden' => $order->status !== 'processing'])>
-        Đơn đã được cửa hàng tiếp nhận. Nếu cần hủy, vui lòng liên hệ cửa hàng và cung cấp mã <strong class="text-gray-900">{{ $order->order_code }}</strong> để được kiểm tra hỗ trợ.
-    </div>
-
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Thông tin đơn hàng -->
         <div class="bg-white rounded-lg shadow-sm p-6">
@@ -141,8 +129,23 @@
         </div>
     </div>
 
-    <div class="mt-6">
-        <a href="{{ route('customer.orders') }}" class="text-gray-600 hover:text-black">← Quay lại lịch sử đơn hàng</a>
+    <div class="mt-6 flex flex-wrap items-start justify-between gap-4">
+        <a href="{{ route('customer.orders') }}" class="inline-flex items-center gap-2 text-gray-600 hover:text-black">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m15 18-6-6 6-6" />
+            </svg>
+            Quay lại lịch sử đơn hàng
+        </a>
+        <div data-order-cancel="{{ $order->id }}" @class(['ml-auto flex flex-col items-end gap-2', 'hidden' => $order->status !== 'pending'])>
+            <form data-order-form data-order-cancel-form data-order-id="{{ $order->id }}" action="{{ route('customer.orders.cancel', $order->id) }}" method="POST">
+                @csrf
+                <button type="submit" class="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">Hủy đơn</button>
+            </form>
+            <p class="max-w-xs text-right text-xs text-gray-500">Có thể hủy trước khi cửa hàng nhận đơn.</p>
+        </div>
+    </div>
+    <div data-order-contact="{{ $order->id }}" @class(['mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600', 'hidden' => $order->status !== 'processing'])>
+        Đơn đã được cửa hàng tiếp nhận. Nếu cần hủy, vui lòng liên hệ cửa hàng và cung cấp mã <strong class="text-gray-900">{{ $order->order_code }}</strong> để được kiểm tra hỗ trợ.
     </div>
 </div>
 @endsection

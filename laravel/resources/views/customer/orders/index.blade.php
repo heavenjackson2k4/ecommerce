@@ -5,7 +5,6 @@
 @section('content')
 <div class="max-w-4xl mx-auto" data-order-realtime data-order-channel="customer.orders.{{ auth()->id() }}" data-order-status-url="{{ route('customer.orders.statuses') }}">
     <h1 class="text-2xl font-bold text-gray-900 mb-6">Lịch sử đơn hàng</h1>
-    <p data-order-connection class="mb-4 text-sm text-gray-500" aria-live="polite">Đang kết nối cập nhật trạng thái...</p>
 
     @if($orders->count() > 0)
         <div class="bg-white rounded-lg shadow-sm overflow-hidden">

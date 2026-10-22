@@ -19,7 +19,6 @@
 
     @include('customer.partials.toast')
     @include('customer.partials.confirm-modal')
-    <p data-order-connection class="mb-4 text-sm text-gray-500" aria-live="polite">Đang kết nối cập nhật trạng thái...</p>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Thông tin đơn hàng -->

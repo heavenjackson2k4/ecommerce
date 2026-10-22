@@ -7,7 +7,6 @@
     <h1 class="text-2xl font-bold mb-6">Quản lý đơn hàng</h1>
 
     @include('customer.partials.toast')
-    <p data-order-connection class="mb-4 text-sm text-gray-500" aria-live="polite">Đang kết nối cập nhật trạng thái...</p>
 
     <form action="{{ route('admin.orders.search') }}" method="GET" id="order-search-form" class="mb-6 rounded-xl border border-gray-200 bg-white p-5">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
