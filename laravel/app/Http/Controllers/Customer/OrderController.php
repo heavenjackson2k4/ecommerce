@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
-use App\Services\CartService;
 use App\Services\ProductService;
 use App\Services\OrderService;
 use DomainException;
@@ -16,26 +15,30 @@ class OrderController extends Controller
 {
     //
 
-    protected CartService $cartService;
     protected OrderService $orderService;
     protected ProductService $productService;
 
-    public function __construct(OrderService $orderService, CartService $cartService, ProductService $productService)
+    public function __construct(OrderService $orderService, ProductService $productService)
     {
         $this->orderService = $orderService;
-        $this->cartService = $cartService;
         $this->productService = $productService;
     }
 
     public function checkout(){
-        $cart = $this->cartService->getCart();
-        if($cart->items->isEmpty()){
-            return redirect()->route('cart.index')->with('error', 'Giỏ hàng trống');
+        try {
+            $summary = $this->orderService->getCheckoutSummary();
+        } catch (DomainException $exception) {
+            return redirect()->route('cart.index')->with('error', $exception->getMessage());
         }
 
-        $cartTotal = $this->cartService->getCartTotal();
         $checkoutData = session('checkout.form', []);
-        return view('customer.checkout.index', compact('cart', 'cartTotal', 'checkoutData'));
+        return view('customer.checkout.index', [
+            'cart' => $summary['cart'],
+            'cartTotal' => $summary['cartTotal'],
+            'checkoutFingerprint' => $summary['checkoutFingerprint'],
+            'pricesChanged' => $summary['pricesChanged'],
+            'checkoutData' => $checkoutData,
+        ]);
     }
 
     public function placeOrder(Request $request){
@@ -46,6 +49,7 @@ class OrderController extends Controller
             'shipping_address' => 'required|string|max:500',
             'note' => 'nullable|string|max:500',
             'payment_method' => 'nullable|in:cod,banking,momo,vnpay',
+            'checkout_fingerprint' => 'nullable|string|size:64',
         ]);
 
         if($validator->fails()){
@@ -81,10 +85,21 @@ class OrderController extends Controller
                     'order_id' => $order->id,
                 ]);
 
-        }catch( Exception $e){
+        } catch (DomainException $exception) {
+            $request->session()->put('checkout.form', collect($checkoutData)->except('checkout_fingerprint')->all());
+
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $exception->getMessage(),
+                'refresh_checkout' => true,
+                'redirect_url' => route('checkout'),
+            ], 409);
+        }catch( Exception $e){
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Chưa thể tạo đơn hàng. Vui lòng kiểm tra lại đơn hàng trước khi thử lại.'
             ], 500);
         }
     }

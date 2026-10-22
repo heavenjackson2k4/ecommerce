@@ -3,13 +3,13 @@
 namespace App\Services;
 
 use App\Models\Order;
-use App\Models\OrderItem;
+use App\Models\Cart;
+use App\Models\Product;
 use App\Models\ClothesVariant;
 use App\Models\ShoesVariant;
 use App\Jobs\SendOrderNotificationJob;
 use App\Events\OrderStatusUpdated;
 use DomainException;
-use Exception;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -20,67 +20,144 @@ class OrderService
 
     private const PER_PAGE = 15;
     private const MAX_INVENTORY_QUANTITY = 1000000;
+    private const MAX_ORDER_AMOUNT_CENTS = 999999999999;
 
     protected CartService $cartService;
     public function __construct(CartService $cartService){
         $this->cartService = $cartService;
     }
 
+    public function getCheckoutSummary(): array
+    {
+        return $this->prepareCheckout($this->cartService->getCart());
+    }
+
     public function createOrder(array $data){
         $user = Auth::user();
-        $cart= $this->cartService->getCart();
 
-        if($cart->items->isEmpty()){
-            throw new Exception('Giỏ hàng trống');
+        if (!$user) {
+            throw new DomainException('Vui lòng đăng nhập để đặt hàng.');
         }
 
-        $orderCode = 'ORD-' . date('YMD') . '-' . strtoupper(Str::random(5));
-        DB::beginTransaction();
-        try{
+        return DB::transaction(function () use ($user, $data) {
+            // Khóa giỏ trước khi đọc các món để hai yêu cầu không cùng tạo đơn từ một giỏ.
+            $cart = Cart::where('user_id', $user->id)->lockForUpdate()->first();
 
+            if (!$cart) {
+                throw new DomainException('Giỏ hàng trống. Vui lòng kiểm tra lại giỏ hàng.');
+            }
+
+            $cart->setRelation('items', $cart->items()->orderBy('id')->lockForUpdate()->get());
+            $summary = $this->prepareCheckout($cart, true);
+
+            if (!hash_equals($summary['checkoutFingerprint'], (string) ($data['checkout_fingerprint'] ?? ''))) {
+                throw new DomainException('Giá hoặc lựa chọn trong giỏ đã thay đổi. Vui lòng xem lại đơn hàng trước khi đặt.');
+            }
+
+            $orderCode = 'ORD-' . date('YMD') . '-' . strtoupper(Str::random(5));
             $order = Order::create([
-                'user_id'=>$user ? $user->id : null,
+                'user_id'=>$user->id,
                 'order_code'=> $orderCode,
                 'customer_name'=>$data['customer_name'],
                 'customer_phone'=>$data['customer_phone'],
                 'shipping_address'=>$data['shipping_address'],
                 'note' => $data['note'] ?? null,
-                'total_amount' => $cart->total,
-                'shipping_fee' => $data['shipping_fee'] ?? 0,
-                'discount_amount' => $data['discount_amount'] ?? 0,
+                'total_amount' => $summary['cartTotal'],
+                'shipping_fee' => 0,
+                'discount_amount' => 0,
                 'payment_method' => $data['payment_method'] ?? 'cod',
                 'status' => 'pending',
             ]);
 
-            foreach($cart->items as $item){
-                $variant =  $item->variant_type == 'shoe' 
-                    ?ShoesVariant::find($item->variant_id) 
-                    : ClothesVariant::find($item->variant_id);
-
-                     OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_id' => $item->product_id,
-                    'variant_type' => $item->variant_type,
-                    'variant_id' => $item->variant_id,
-                    'size' => $item->size,
-                    'color' => $item->color,
-                    'stud_type' => $item->stud_type,
-                    'quantity' => $item->quantity,
-                    'price' => $item->price,
-                    'total' => $item->price * $item->quantity,
-                ]);
-            }
-
-            $this->cartService->clearCart();
-            DB::commit();
+            $order->items()->createMany($summary['orderItems']);
+            $cart->items()->whereIn('id', $cart->items->modelKeys())->delete();
+            $cart->update(['total' => 0]);
 
             // SendOrderNotificationJob::dispatch($order);
             return $order->load('items');
 
-        }catch(Exception $e){
-            DB::rollBack();
-            throw $e;
+        }, 3);
+    }
+
+    private function prepareCheckout(Cart $cart, bool $lock = false): array
+    {
+        if ($cart->items->isEmpty()) {
+            throw new DomainException('Giỏ hàng trống. Vui lòng kiểm tra lại giỏ hàng.');
         }
+
+        if ($cart->items->contains(fn ($item) => !in_array($item->variant_type, ['shoe', 'cloth'], true)
+            || $item->quantity < 1 || $item->quantity > self::MAX_INVENTORY_QUANTITY)) {
+            throw new DomainException('Có lựa chọn hoặc số lượng không hợp lệ trong giỏ. Vui lòng kiểm tra lại.');
+        }
+
+        $products = Product::query()->whereIn('id', $cart->items->pluck('product_id'))->orderBy('id')
+            ->when($lock, fn ($query) => $query->sharedLock())->get()->keyBy('id');
+        $variants = [];
+
+        foreach (['shoe' => ShoesVariant::class, 'cloth' => ClothesVariant::class] as $type => $model) {
+            $ids = $cart->items->where('variant_type', $type)->pluck('variant_id')->unique();
+            $variants[$type] = $model::query()->whereIn('id', $ids)->orderBy('id')
+                ->when($lock, fn ($query) => $query->sharedLock())->get()->keyBy('id');
+        }
+
+        $quantities = $cart->items->groupBy(fn ($item) => $item->variant_type . ':' . $item->variant_id)
+            ->map(fn ($items) => $items->sum('quantity'));
+        $totalCents = 0;
+        $orderItems = [];
+        $pricesChanged = false;
+
+        foreach ($cart->items->sortBy('id') as $item) {
+            $product = $products->get($item->product_id);
+            $variant = $variants[$item->variant_type]->get($item->variant_id);
+
+            $issue = $this->cartService->getItemIssue($item, $product, $variant, $quantities[$item->variant_type . ':' . $item->variant_id]);
+            if ($issue) {
+                throw new DomainException($issue['message']);
+            }
+
+            $price = (string) ($variant->price_override ?? $product->base_price);
+
+            if (!preg_match('/^\d{1,10}\.\d{2}$/', $price)) {
+                throw new DomainException('Có giá sản phẩm không hợp lệ. Vui lòng liên hệ cửa hàng.');
+            }
+
+            // Tính theo đơn vị 1/100 đồng bằng số nguyên để tránh sai số số thực.
+            $priceCents = (int) str_replace('.', '', $price);
+            $lineCents = $priceCents * $item->quantity;
+            $totalCents += $lineCents;
+
+            if ($totalCents > self::MAX_ORDER_AMOUNT_CENTS) {
+                throw new DomainException('Tổng giá trị đơn vượt giới hạn cho phép. Vui lòng giảm số lượng hoặc chia đơn.');
+            }
+
+            $pricesChanged = $pricesChanged || (string) $item->price !== $price;
+            $item->price = $price;
+            $item->setRelation('product', $product);
+            $orderItems[] = [
+                'product_id' => $product->id,
+                'variant_type' => $item->variant_type,
+                'variant_id' => $variant->id,
+                'size' => $variant->size,
+                'color' => $variant->color,
+                'stud_type' => $item->variant_type === 'shoe' ? $variant->stud_type : null,
+                'quantity' => $item->quantity,
+                'price' => $price,
+                'total' => $this->formatCheckoutAmount($lineCents),
+            ];
+        }
+
+        return [
+            'cart' => $cart,
+            'cartTotal' => $this->formatCheckoutAmount($totalCents),
+            'checkoutFingerprint' => hash('sha256', json_encode([$cart->id, $cart->items->sortBy('id')->modelKeys(), $orderItems], JSON_THROW_ON_ERROR)),
+            'pricesChanged' => $pricesChanged,
+            'orderItems' => $orderItems,
+        ];
+    }
+
+    private function formatCheckoutAmount(int $cents): string
+    {
+        return intdiv($cents, 100) . '.' . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
     }
 
     public function getOrdersByUser($userId){
